@@ -16,6 +16,7 @@ fn main() -> BResult<()> {
     game.penta_decathlon((64, 3))?;
 
     for _ in 0..1000 {
+        print!("{esc}c", esc = 27 as char);
         println!("{}", game);
         game.update();
         std::thread::sleep(std::time::Duration::from_millis(500));
