@@ -1,8 +1,7 @@
 use std::{thread, time::Duration};
-use conways_game_of_life_impl::{BResult, Grid, Grid2d, LinearGrid};
+use conways_game_of_life_impl::{BResult, Grid, Grid2d};
 
 fn main() -> BResult<()> {
-    //let mut grid = LinearGrid::empty((80, 21));
     let mut grid = Grid2d::empty((80, 21));
 
     grid.block((1, 1))?;
