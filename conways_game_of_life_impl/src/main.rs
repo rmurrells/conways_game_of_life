@@ -1,25 +1,26 @@
+use std::{thread, time::Duration};
 use conways_game_of_life_impl::{BResult, Grid, Grid2d, LinearGrid};
 
 fn main() -> BResult<()> {
-    //let mut game = LinearGrid::empty((80, 21));
-    let mut game = Grid2d::empty((80, 21));
+    //let mut grid = LinearGrid::empty((80, 21));
+    let mut grid = Grid2d::empty((80, 21));
 
-    game.block((1, 1))?;
-    game.bee_hive((5, 1))?;
-    game.loaf((11, 1))?;
-    game.boat((17, 1))?;
-    game.tub((22, 1))?;
-    game.blinker((28, 1))?;
-    game.toad((32, 1))?;
-    game.beacon((38, 1))?;
-    game.pulsar((45, 1))?;
-    game.penta_decathlon((64, 3))?;
+    grid.block((1, 1))?;
+    grid.bee_hive((5, 1))?;
+    grid.loaf((11, 1))?;
+    grid.boat((17, 1))?;
+    grid.tub((22, 1))?;
+    grid.blinker((28, 1))?;
+    grid.toad((32, 1))?;
+    grid.beacon((38, 1))?;
+    grid.pulsar((45, 1))?;
+    grid.penta_decathlon((64, 3))?;
 
     for _ in 0..1000 {
         print!("{esc}c", esc = 27 as char);
-        println!("{}", game);
-        game.update();
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        println!("{}", grid);
+        grid.update();
+        thread::sleep(Duration::from_millis(200));
     }
 
     Ok(())

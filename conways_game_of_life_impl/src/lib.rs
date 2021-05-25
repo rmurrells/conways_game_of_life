@@ -1,7 +1,7 @@
-use std::{error::Error, fmt, mem};
+use std::{error::Error, fmt, mem, slice::{Chunks, Iter}};
 
-pub type GridPoint = (GridUnit, GridUnit);
 pub type GridUnit = u32;
+pub type GridPoint = (GridUnit, GridUnit);
 
 fn grid_point_contained(point: GridPoint, size: GridPoint) -> bool {
     point.0 < size.0 && point.1 < size.1
@@ -217,6 +217,15 @@ pub trait Grid {
     }
 }
 
+pub trait GridIter<'a>
+where 
+    Self::I: IntoIterator,
+    <Self::I as IntoIterator>::Item: IntoIterator<Item = &'a bool>,
+{
+    type I;
+    fn iter(&'a self) -> Self::I;
+}
+
 pub struct LinearGrid {
     size: GridPoint,
     current_vec: Vec<bool>,
@@ -283,6 +292,13 @@ impl Grid for LinearGrid {
             }
         }
         Ok(())	
+    }
+}
+
+impl<'a> GridIter<'a> for LinearGrid {
+    type I = Chunks<'a, bool>;
+    fn iter(&'a self) -> Self::I {
+        self.current_vec.chunks(self.size.0 as usize)
     }
 }
 
@@ -354,6 +370,13 @@ impl Grid for Grid2d {
 	    writeln!(f)?;
 	}
         Ok(())	
+    }
+}
+
+impl<'a> GridIter<'a> for Grid2d {
+    type I = Iter<'a, Vec<bool>>;
+    fn iter(&'a self) -> Self::I {
+        self.current_vec.iter()
     }
 }
 
