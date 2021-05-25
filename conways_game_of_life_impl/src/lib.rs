@@ -1,4 +1,6 @@
-use std::{error::Error, fmt, mem, slice::{Chunks, Iter}};
+pub mod config;
+
+use std::{error::Error, fmt, mem};
 
 pub type GridUnit = u32;
 pub type GridPoint = (GridUnit, GridUnit);
@@ -8,7 +10,10 @@ fn grid_point_contained(point: GridPoint, size: GridPoint) -> bool {
 }
 
 #[derive(Debug)]
-pub struct OutOfBounds{point: GridPoint, size: GridPoint}
+pub struct OutOfBounds {
+    point: GridPoint,
+    size: GridPoint,
+}
 impl fmt::Display for OutOfBounds {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
@@ -33,7 +38,7 @@ pub trait Grid {
 
     fn get_cell_unchecked(&self, point: GridPoint) -> bool;
     fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
-    
+
     fn get_cell(&self, point: GridPoint) -> bool {
         if grid_point_contained(point, self.size()) {
             self.get_cell_unchecked(point)
@@ -43,21 +48,21 @@ pub trait Grid {
     }
 
     fn get_cell_mut(&mut self, point: GridPoint) -> BResult<&mut bool> {
-	let size = self.size();
+        let size = self.size();
         if grid_point_contained(point, size) {
             Ok(self.get_cell_unchecked_mut(point))
         } else {
-            Err(OutOfBounds{point, size})
+            Err(OutOfBounds { point, size })
         }
     }
 
     fn g_fmt(&self, _tc: char, _fc: char, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-	Ok(())
+        Ok(())
     }
-    
+
     fn next_cell_state(&self, (x, y): GridPoint) -> bool {
         let mut counter = 0;
-	
+
         if x != 0 {
             if self.get_cell((x - 1, y)) {
                 counter += 1;
@@ -74,10 +79,8 @@ pub trait Grid {
                 counter += 1;
             }
         }
-        if x != 0 && y != 0 {
-            if self.get_cell((x - 1, y - 1)) {
-                counter += 1;
-            }
+        if x != 0 && y != 0 && self.get_cell((x - 1, y - 1)) {
+            counter += 1;
         }
 
         if self.get_cell((x, y + 1)) {
@@ -90,9 +93,9 @@ pub trait Grid {
             counter += 1;
         }
 
-	counter == 3 || (counter == 2 && self.get_cell_unchecked((x, y)))
+        counter == 3 || (counter == 2 && self.get_cell_unchecked((x, y)))
     }
-    
+
     fn set_hline(
         &mut self,
         start: GridUnit,
@@ -208,12 +211,12 @@ pub trait Grid {
     }
 
     fn penta_decathlon(&mut self, (x, y): GridPoint) -> BResult<()> {
-	self.set_vline(y, 10, x + 1, true)?;
-	self.set_hline(x, 3, y+2, true)?;
-	self.set_hline(x, 3, y+7, true)?;
+        self.set_vline(y, 10, x + 1, true)?;
+        self.set_hline(x, 3, y + 2, true)?;
+        self.set_hline(x, 3, y + 7, true)?;
 
-	self.set_cell((x + 1, y+2), false)?;
-	self.set_cell((x + 1, y+7), false)
+        self.set_cell((x + 1, y + 2), false)?;
+        self.set_cell((x + 1, y + 7), false)
     }
 
     fn lwss(&mut self, (x, y): GridPoint) -> BResult<()> {
@@ -241,15 +244,6 @@ pub trait Grid {
         self.set_vline(y + 2, 2, x, true)?;
         self.set_hline(x, 6, y + 4, true)
     }
-}
-
-pub trait GridIter<'a>
-where 
-    Self::I: IntoIterator,
-    <Self::I as IntoIterator>::Item: IntoIterator<Item = &'a bool>,
-{
-    type I;
-    fn iter(&'a self) -> Self::I;
 }
 
 pub struct LinearGrid {
@@ -283,9 +277,9 @@ impl Grid for LinearGrid {
     }
 
     fn size(&self) -> GridPoint {
-	self.size
+        self.size
     }
-    
+
     fn set_cell(&mut self, point: GridPoint, b: bool) -> BResult<()> {
         *self.get_cell_mut(point)? = b;
         Ok(())
@@ -303,8 +297,8 @@ impl Grid for LinearGrid {
     fn update(&mut self) {
         for x in 0..self.size.0 {
             for y in 0..self.size.1 {
-		let index = self.get_index((x, y));
-		self.next_vec[index] = self.next_cell_state((x, y));
+                let index = self.get_index((x, y));
+                self.next_vec[index] = self.next_cell_state((x, y));
             }
         }
         mem::swap(&mut self.current_vec, &mut self.next_vec);
@@ -317,26 +311,19 @@ impl Grid for LinearGrid {
                 writeln!(f)?;
             }
         }
-        Ok(())	
-    }
-}
-
-impl<'a> GridIter<'a> for LinearGrid {
-    type I = Chunks<'a, bool>;
-    fn iter(&'a self) -> Self::I {
-        self.current_vec.chunks(self.size.0 as usize)
+        Ok(())
     }
 }
 
 impl fmt::Display for LinearGrid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-	self.g_fmt('\u{2588}', ' ', f)
+        self.g_fmt('\u{2588}', ' ', f)
     }
 }
 
 impl fmt::Debug for LinearGrid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-	self.g_fmt('X', '-', f)
+        self.g_fmt('X', '-', f)
     }
 }
 
@@ -348,11 +335,11 @@ pub struct Grid2d {
 
 impl Grid2d {
     pub fn empty(size: GridPoint) -> Self {
-	let next_vec = vec![vec![false; size.0 as usize]; size.1 as usize];
-	Self {
+        let next_vec = vec![vec![false; size.0 as usize]; size.1 as usize];
+        Self {
             size,
-	    current_vec: next_vec.clone(),
-	    next_vec,
+            current_vec: next_vec.clone(),
+            next_vec,
         }
     }
 }
@@ -363,9 +350,9 @@ impl Grid for Grid2d {
     }
 
     fn size(&self) -> GridPoint {
-	self.size
+        self.size
     }
-    
+
     fn set_cell(&mut self, point: GridPoint, b: bool) -> BResult<()> {
         *self.get_cell_mut(point)? = b;
         Ok(())
@@ -382,38 +369,31 @@ impl Grid for Grid2d {
     fn update(&mut self) {
         for x in 0..self.size.0 {
             for y in 0..self.size.1 {
-		self.next_vec[y as usize][x as usize] = self.next_cell_state((x, y));
+                self.next_vec[y as usize][x as usize] = self.next_cell_state((x, y));
             }
         }
         mem::swap(&mut self.current_vec, &mut self.next_vec);
     }
 
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-	for v in &self.current_vec {
-	    for b in v {
-		write!(f, "{}", if *b { tc } else { fc })?;
-	    }
-	    writeln!(f)?;
-	}
-        Ok(())	
-    }
-}
-
-impl<'a> GridIter<'a> for Grid2d {
-    type I = Iter<'a, Vec<bool>>;
-    fn iter(&'a self) -> Self::I {
-        self.current_vec.iter()
+        for v in &self.current_vec {
+            for b in v {
+                write!(f, "{}", if *b { tc } else { fc })?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
     }
 }
 
 impl fmt::Display for Grid2d {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-	self.g_fmt('\u{2588}', ' ', f)
+        self.g_fmt('\u{2588}', ' ', f)
     }
 }
 
 impl fmt::Debug for Grid2d {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-	self.g_fmt('X', '-', f)
+        self.g_fmt('X', '-', f)
     }
 }
