@@ -14,12 +14,15 @@ fn main() -> BResult<()> {
     grid.beacon((38, 1))?;
     grid.pulsar((45, 1))?;
     grid.penta_decathlon((64, 3))?;
+    grid.lwss((26, 10))?;
+    grid.mwss((35, 7))?;
+    grid.hwss((35, 14))?;
 
     for _ in 0..1000 {
         print!("{esc}c", esc = 27 as char);
         println!("{}", grid);
         grid.update();
-        thread::sleep(Duration::from_millis(200));
+        thread::sleep(Duration::from_millis(100));
     }
 
     Ok(())

@@ -215,6 +215,32 @@ pub trait Grid {
 	self.set_cell((x + 1, y+2), false)?;
 	self.set_cell((x + 1, y+7), false)
     }
+
+    fn lwss(&mut self, (x, y): GridPoint) -> BResult<()> {
+        self.set_cell((x + 1, y), true)?;
+        self.set_cell((x + 4, y), true)?;
+        self.set_cell((x + 4, y + 2), true)?;
+        self.set_vline(y + 1, 2, x, true)?;
+        self.set_hline(x, 4, y + 3, true)
+    }
+
+    fn mwss(&mut self, (x, y): GridPoint) -> BResult<()> {
+        self.set_cell((x + 3, y), true)?;
+        self.set_cell((x + 1, y + 1), true)?;
+        self.set_cell((x + 5, y + 1), true)?;
+        self.set_cell((x + 5, y + 3), true)?;
+        self.set_vline(y + 2, 2, x, true)?;
+        self.set_hline(x, 5, y + 4, true)
+    }
+
+    fn hwss(&mut self, (x, y): GridPoint) -> BResult<()> {
+        self.set_hline(x + 3, 2, y, true)?;
+        self.set_cell((x + 1, y + 1), true)?;
+        self.set_cell((x + 6, y + 1), true)?;
+        self.set_cell((x + 6, y + 3), true)?;
+        self.set_vline(y + 2, 2, x, true)?;
+        self.set_hline(x, 6, y + 4, true)
+    }
 }
 
 pub trait GridIter<'a>
