@@ -1,4 +1,4 @@
-use conways_game_of_life_impl::{config, Grid, Grid2d, Grid2dArr, GridUnit, LinearGrid};
+use conways_game_of_life_impl::{config, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridUnit};
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
@@ -22,8 +22,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     const WIDTH: usize = 600;
     const HEIGHT: usize = 600;
     let size = (WIDTH as GridUnit, HEIGHT as GridUnit);
-    init_benchmark("linear", LinearGrid::empty(size), &mut group);
-    init_benchmark("2d", Grid2d::empty(size), &mut group);
+    init_benchmark("1d_vec", Grid1dVec::empty(size), &mut group);
+    init_benchmark("2d_vec", Grid2dVec::empty(size), &mut group);
     init_benchmark("2d_arr", Grid2dArr::<WIDTH, HEIGHT>::empty(), &mut group);
 
     group.finish();

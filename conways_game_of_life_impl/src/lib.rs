@@ -318,8 +318,8 @@ impl GridPrivate for Grid2dVec {
     }
 
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for v in &self.current_vec {
-            for b in v {
+        for row in &self.current_vec {
+            for b in row {
                 write!(f, "{}", if *b { tc } else { fc })?;
             }
             writeln!(f)?;
@@ -387,8 +387,8 @@ impl<const WIDTH: usize, const HEIGHT: usize> private::GridPrivate for Grid2dArr
     }
 
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for v in &self.current_arr {
-            for b in v {
+        for row in &self.current_arr {
+            for b in row {
                 write!(f, "{}", if *b { tc } else { fc })?;
             }
             writeln!(f)?;
