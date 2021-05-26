@@ -33,6 +33,7 @@ pub enum SetLineOpt {
 pub(crate) mod private {
     use super::*;
     pub trait GridPrivate: Clone {
+        fn _size(&self) -> GridPoint;
         fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator>;
 
         fn regulate_frame(&mut self) {
@@ -49,11 +50,14 @@ pub(crate) mod private {
 use private::GridPrivate;
 
 pub trait Grid: GridPrivate {
-    fn size(&self) -> GridPoint;
     fn update(&mut self);
 
     fn get_cell_unchecked(&self, point: GridPoint) -> bool;
     fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
+
+    fn size(&self) -> GridPoint {
+        self._size()
+    }
 
     fn set_fps(&mut self, fps: u64) {
         *self.frame_regulator_opt() = if fps != 0 {
@@ -129,42 +133,6 @@ pub trait Grid: GridPrivate {
         Ok(())
     }
 
-    fn next_cell_state(&self, (x, y): GridPoint) -> bool {
-        let mut counter = 0;
-
-        if x != 0 {
-            if self.get_cell((x - 1, y)) {
-                counter += 1;
-            }
-            if self.get_cell((x - 1, y + 1)) {
-                counter += 1;
-            }
-        }
-        if y != 0 {
-            if self.get_cell((x, y - 1)) {
-                counter += 1;
-            }
-            if self.get_cell((x + 1, y - 1)) {
-                counter += 1;
-            }
-        }
-        if x != 0 && y != 0 && self.get_cell((x - 1, y - 1)) {
-            counter += 1;
-        }
-
-        if self.get_cell((x, y + 1)) {
-            counter += 1;
-        }
-        if self.get_cell((x + 1, y)) {
-            counter += 1;
-        }
-        if self.get_cell((x + 1, y + 1)) {
-            counter += 1;
-        }
-
-        counter == 3 || (counter == 2 && self.get_cell_unchecked((x, y)))
-    }
-
     fn set_hline(
         &mut self,
         start: GridUnit,
@@ -208,6 +176,42 @@ pub trait Grid: GridPrivate {
     }
 }
 
+fn next_cell_state<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
+    let mut counter = 0;
+
+    if x > 0 {
+        if grid.get_cell((x - 1, y)) {
+            counter += 1;
+        }
+        if grid.get_cell((x - 1, y + 1)) {
+            counter += 1;
+        }
+    }
+    if y > 0 {
+        if grid.get_cell((x, y - 1)) {
+            counter += 1;
+        }
+        if grid.get_cell((x + 1, y - 1)) {
+            counter += 1;
+        }
+    }
+    if x > 0 && y > 0 && grid.get_cell((x - 1, y - 1)) {
+        counter += 1;
+    }
+
+    if grid.get_cell((x, y + 1)) {
+        counter += 1;
+    }
+    if grid.get_cell((x + 1, y)) {
+        counter += 1;
+    }
+    if grid.get_cell((x + 1, y + 1)) {
+        counter += 1;
+    }
+
+    counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)))
+}
+
 type Grid1dVecContainer = Vec<bool>;
 
 #[derive(Clone)]
@@ -239,6 +243,10 @@ impl Grid1dVec {
 }
 
 impl GridPrivate for Grid1dVec {
+    fn _size(&self) -> GridPoint {
+        self.size
+    }
+
     fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
         &mut self.frame_regulator_opt
     }
@@ -255,14 +263,10 @@ impl GridPrivate for Grid1dVec {
 }
 
 impl Grid for Grid1dVec {
-    fn size(&self) -> GridPoint {
-        self.size
-    }
-
     fn update(&mut self) {
         self.inspect_mut(|(x, y), grid| {
             let index = grid.get_index((x, y));
-            grid.next_vec[index] = grid.next_cell_state((x, y));
+            grid.next_vec[index] = next_cell_state(grid, (x, y));
         });
         mem::swap(&mut self.current_vec, &mut self.next_vec);
         self.regulate_frame();
@@ -313,6 +317,10 @@ impl Grid2dVec {
 }
 
 impl GridPrivate for Grid2dVec {
+    fn _size(&self) -> GridPoint {
+        self.size
+    }
+
     fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
         &mut self.frame_regulator_opt
     }
@@ -329,13 +337,9 @@ impl GridPrivate for Grid2dVec {
 }
 
 impl Grid for Grid2dVec {
-    fn size(&self) -> GridPoint {
-        self.size
-    }
-
     fn update(&mut self) {
         self.inspect_mut(|(x, y), grid| {
-            grid.next_vec[y as usize][x as usize] = grid.next_cell_state((x, y));
+            grid.next_vec[y as usize][x as usize] = next_cell_state(grid, (x, y));
         });
         mem::swap(&mut self.current_vec, &mut self.next_vec);
         self.regulate_frame();
@@ -382,6 +386,10 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid2dArr<WIDTH, HEIGHT> {
 }
 
 impl<const WIDTH: usize, const HEIGHT: usize> private::GridPrivate for Grid2dArr<WIDTH, HEIGHT> {
+    fn _size(&self) -> GridPoint {
+        (WIDTH as GridUnit, HEIGHT as GridUnit)
+    }
+
     fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
         &mut self.frame_regulator_opt
     }
@@ -398,10 +406,6 @@ impl<const WIDTH: usize, const HEIGHT: usize> private::GridPrivate for Grid2dArr
 }
 
 impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> {
-    fn size(&self) -> GridPoint {
-        (WIDTH as GridUnit, HEIGHT as GridUnit)
-    }
-
     fn set_fps(&mut self, fps: u64) {
         self.frame_regulator_opt = if fps != 0 {
             Some(FrameRegulator::fps(fps))
@@ -412,7 +416,7 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> 
 
     fn update(&mut self) {
         self.inspect_mut(|(x, y), grid| {
-            grid.next_arr[y as usize][x as usize] = grid.next_cell_state((x, y));
+            grid.next_arr[y as usize][x as usize] = next_cell_state(grid, (x, y));
         });
         self.current_arr = self.next_arr;
 
