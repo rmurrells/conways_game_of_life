@@ -59,23 +59,23 @@ pub trait Grid {
         }
     }
 
-    fn inspect<F: FnMut(GridPoint, bool)>(&self, mut f: F) {
+    fn inspect<F: FnMut(GridPoint, &Self)>(&self, mut f: F) {
         let size = self.size();
         for y in 0..size.1 {
             for x in 0..size.0 {
-                f((x, y), self.get_cell_unchecked((x, y)));
+                f((x, y), self);
             }
         }
     }
 
-    fn try_inspect<E, F: FnMut(GridPoint, bool) -> Result<(), E>>(
+    fn try_inspect<E, F: FnMut(GridPoint, &Self) -> Result<(), E>>(
         &self,
         mut f: F,
     ) -> Result<(), E> {
         let size = self.size();
         for y in 0..size.1 {
             for x in 0..size.0 {
-                f((x, y), self.get_cell_unchecked((x, y)))?;
+		f((x, y), self)?;
             }
         }
         Ok(())
