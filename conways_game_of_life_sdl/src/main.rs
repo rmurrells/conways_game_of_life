@@ -8,10 +8,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut interface_builder = SDLInterfaceBuilder::new()?;
     interface_builder
         .renderer_builder
-        .video_subsystem_command(|vss| {
+        .video_subsystem_command(|mut vss| {
             vss.window_size = (600, 600);
+            vss
         });
-
+    
     let mut interface = interface_builder.build(grid)?;
     interface.run()?;
     Ok(())

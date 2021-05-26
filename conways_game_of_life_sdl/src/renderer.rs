@@ -28,12 +28,14 @@ pub struct VideoSubsystemStage {
     pub window_size: (u32, u32),
 }
 
+type CommandOpt<T> = Option<Box<dyn FnMut(T) -> T>>;
+
 struct StageCommands {
-    video_subsystem: Option<Box<dyn FnMut(&mut VideoSubsystemStage)>>,
-    window_builder: Option<Box<dyn FnMut(&mut WindowBuilder)>>,
-    window: Option<Box<dyn FnMut(&mut Window)>>,
-    canvas_builder: Option<Box<dyn FnMut(&mut CanvasBuilder)>>,
-    canvas: Option<Box<dyn FnMut(&mut WindowCanvas)>>,
+    video_subsystem: CommandOpt<VideoSubsystemStage>,
+    window_builder: CommandOpt<WindowBuilder>,
+    window: CommandOpt<Window>,
+    canvas_builder: CommandOpt<CanvasBuilder>,
+    canvas: CommandOpt<WindowCanvas>,
 }
 
 impl StageCommands {
@@ -46,6 +48,46 @@ impl StageCommands {
             canvas: None,
         }
     }
+}
+
+macro_rules! set_command {
+    ($fn_name:ident, $var_name:ident, $t:ty) => {
+        pub fn $fn_name<F: FnMut($t) -> $t + 'static>(&mut self, f: F) {
+            self.stage_commands.$var_name = Some(Box::new(f));
+        }
+    };
+}
+
+macro_rules! process_stages {
+    ($self:ident, $([$build_stage:ident, $var_name:ident, $next_stage:ident, $conf_name:ident, $ret:expr]),+, $(,)?) => {
+        loop {
+	$self.build_stage = match $self.build_stage {
+	    $(
+		RendererBuildStage::$build_stage(mut $conf_name) => {
+		    apply_command!($self, $var_name, $conf_name);
+		    RendererBuildStage::$next_stage($ret)
+		}
+	    )+
+	        RendererBuildStage::Canvas(mut canvas) => {
+		    apply_command!($self, canvas, canvas);
+                    return Ok(Renderer {
+                        _video: $self.video,
+                           canvas,
+                        background_color: $self.background_color,
+                        cell_color: $self.cell_color,
+                    });
+                }
+	}
+	}
+    }
+}
+
+macro_rules! apply_command {
+    ($self:ident, $var_name:ident, $conf_name:ident) => {
+        if let Some(command) = &mut $self.stage_commands.$var_name {
+            $conf_name = command($conf_name);
+        }
+    };
 }
 
 impl RendererBuilder {
@@ -62,70 +104,31 @@ impl RendererBuilder {
         })
     }
 
-    pub fn video_subsystem_command<F: FnMut(&mut VideoSubsystemStage) + 'static>(&mut self, f: F) {
-        self.stage_commands.video_subsystem = Some(Box::new(f));
-    }
-
-    pub fn window_builder_command<F: FnMut(&mut WindowBuilder) + 'static>(&mut self, f: F) {
-        self.stage_commands.window_builder = Some(Box::new(f));
-    }
-
-    pub fn window_command<F: FnMut(&mut Window) + 'static>(&mut self, f: F) {
-        self.stage_commands.window = Some(Box::new(f));
-    }
-
-    pub fn canvas_builder_command<F: FnMut(&mut CanvasBuilder) + 'static>(&mut self, f: F) {
-        self.stage_commands.canvas_builder = Some(Box::new(f));
-    }
-
-    pub fn canvas_command<F: FnMut(&mut WindowCanvas) + 'static>(&mut self, f: F) {
-        self.stage_commands.canvas = Some(Box::new(f));
-    }
+    set_command!(
+        video_subsystem_command,
+        video_subsystem,
+        VideoSubsystemStage
+    );
+    set_command!(window_builder_command, window_builder, WindowBuilder);
+    set_command!(window_command, window, Window);
+    set_command!(canvas_builder_command, canvas_builder, CanvasBuilder);
+    set_command!(canvas_command, canvas, WindowCanvas);
 
     pub fn build(mut self) -> IResult<Renderer> {
-        loop {
-            self.build_stage = match self.build_stage {
-                RendererBuildStage::VideoSubsystem(mut vss) => {
-                    if let Some(command) = &mut self.stage_commands.video_subsystem {
-                        command(&mut vss);
-                    }
-                    RendererBuildStage::WindowBuilder(self.video.window(
-                        &vss.window_name,
-                        vss.window_size.0,
-                        vss.window_size.1,
-                    ))
-                }
-                RendererBuildStage::WindowBuilder(mut wb) => {
-                    if let Some(command) = &mut self.stage_commands.window_builder {
-                        command(&mut wb);
-                    }
-                    RendererBuildStage::Window(wb.build()?)
-                }
-                RendererBuildStage::Window(mut w) => {
-                    if let Some(command) = &mut self.stage_commands.window {
-                        command(&mut w);
-                    }
-                    RendererBuildStage::CanvasBuilder(w.into_canvas())
-                }
-                RendererBuildStage::CanvasBuilder(mut cb) => {
-                    if let Some(command) = &mut self.stage_commands.canvas_builder {
-                        command(&mut cb);
-                    }
-                    RendererBuildStage::Canvas(cb.build()?)
-                }
-                RendererBuildStage::Canvas(mut canvas) => {
-                    if let Some(command) = &mut self.stage_commands.canvas {
-                        command(&mut canvas);
-                    }
-                    return Ok(Renderer {
-                        _video: self.video,
-                        canvas,
-                        background_color: self.background_color,
-                        cell_color: self.cell_color,
-                    });
-                }
-            }
-        }
+        process_stages!(
+            self,
+            [
+                VideoSubsystem,
+                video_subsystem,
+                WindowBuilder,
+                vss,
+                self.video
+                    .window(&vss.window_name, vss.window_size.0, vss.window_size.1,)
+            ],
+            [WindowBuilder, window_builder, Window, wb, wb.build()?],
+            [Window, window, CanvasBuilder, w, w.into_canvas()],
+            [CanvasBuilder, canvas_builder, Canvas, cb, cb.build()?],
+        );
     }
 }
 
