@@ -5,6 +5,6 @@ fn main() -> BResult<()> {
     grid.set_fps(0);
     config::test(&mut grid)?;
     loop {
-	grid.update();
+        grid.update();
     }
 }
