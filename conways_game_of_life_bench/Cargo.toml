@@ -10,6 +10,9 @@ edition = "2018"
 conways_game_of_life_impl = {path = "../conways_game_of_life_impl"}
 criterion = "*"
 
+[profile.release]
+debug = 1
+
 [[bench]]
 name = "default_benchmark"
 harness = false
