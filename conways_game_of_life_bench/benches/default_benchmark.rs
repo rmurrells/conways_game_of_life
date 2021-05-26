@@ -1,22 +1,24 @@
 use criterion::{BenchmarkGroup, criterion_group, criterion_main, Criterion, measurement::WallTime};
-use conways_game_of_life_impl::{Grid, Grid2d, LinearGrid};
+use conways_game_of_life_impl::{config, Grid, Grid2d, LinearGrid};
 use std::time::Duration;
 
-fn init_benchmark<G: Grid>(name: &str, mut game: G, group: &mut BenchmarkGroup<'_, WallTime>) {
-    game.block((1, 1)).unwrap();
-    game.bee_hive((5, 1)).unwrap();
-    game.loaf((11, 1)).unwrap();
-    game.boat((17, 1)).unwrap();
-    game.tub((22, 1)).unwrap();
-    game.blinker((28, 1)).unwrap();
-    game.toad((32, 1)).unwrap();
-    game.beacon((38, 1)).unwrap();
-    game.pulsar((45, 1)).unwrap();
-    game.penta_decathlon((64, 3)).unwrap();
-	
+fn init_benchmark<G: Grid>(name: &str, mut grid: G, group: &mut BenchmarkGroup<'_, WallTime>) {
+    grid.set_fps(0);
+    
+    config::block(&mut grid, (1, 1)).unwrap();
+    config::bee_hive(&mut grid, (5, 1)).unwrap();
+    config::loaf(&mut grid, (11, 1)).unwrap();
+    config::boat(&mut grid, (17, 1)).unwrap();
+    config::tub(&mut grid, (22, 1)).unwrap();
+    config::blinker(&mut grid, (28, 1)).unwrap();
+    config::toad(&mut grid, (32, 1)).unwrap();
+    config::beacon(&mut grid, (38, 1)).unwrap();
+    config::pulsar(&mut grid, (45, 1)).unwrap();
+    config::penta_decathlon(&mut grid, (64, 3)).unwrap();
+    
     group.bench_function(name, |b| {
         b.iter(|| {
-	    game.update();
+	    grid.update();
         })
     });
 }

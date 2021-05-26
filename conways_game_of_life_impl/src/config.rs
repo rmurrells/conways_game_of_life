@@ -1,19 +1,19 @@
 use crate::{BResult, Grid, GridPoint};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-fn block<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn block<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x, 2, y, true)?;
     grid.set_hline(x, 2, y + 1, true)
 }
 
-fn bee_hive<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn bee_hive<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x + 1, 2, y, true)?;
     grid.set_cell((x, y + 1), true)?;
     grid.set_cell((x + 3, y + 1), true)?;
     grid.set_hline(x + 1, 2, y + 2, true)
 }
 
-fn loaf<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn loaf<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x + 1, 2, y, true)?;
     grid.set_vline(y + 1, 2, x + 3, true)?;
     grid.set_cell((x, y + 1), true)?;
@@ -21,35 +21,35 @@ fn loaf<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_cell((x + 2, y + 3), true)
 }
 
-fn boat<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn boat<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x, 2, y, true)?;
     grid.set_cell((x, y + 1), true)?;
     grid.set_cell((x + 2, y + 1), true)?;
     grid.set_cell((x + 1, y + 2), true)
 }
 
-fn tub<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn tub<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_cell((x + 1, y), true)?;
     grid.set_cell((x, y + 1), true)?;
     grid.set_cell((x + 2, y + 1), true)?;
     grid.set_cell((x + 1, y + 2), true)
 }
 
-fn blinker<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn blinker<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x, 3, y, true)
 }
 
-fn toad<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn toad<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x + 1, 3, y, true)?;
     grid.set_hline(x, 3, y + 1, true)
 }
 
-fn beacon<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn beacon<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     block(grid, (x, y))?;
     block(grid, (x + 2, y + 2))
 }
 
-fn pulsar<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn pulsar<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     let length = 3;
 
     grid.set_hline(x + 2, length, y, true)?;
@@ -73,7 +73,7 @@ fn pulsar<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_vline(y + 8, length, x + 12, true)
 }
 
-fn penta_decathlon<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn penta_decathlon<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_vline(y, 10, x + 1, true)?;
     grid.set_hline(x, 3, y + 2, true)?;
     grid.set_hline(x, 3, y + 7, true)?;
@@ -82,7 +82,7 @@ fn penta_decathlon<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_cell((x + 1, y + 7), false)
 }
 
-fn lwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn lwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_cell((x + 1, y), true)?;
     grid.set_cell((x + 4, y), true)?;
     grid.set_cell((x + 4, y + 2), true)?;
@@ -90,7 +90,7 @@ fn lwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x, 4, y + 3, true)
 }
 
-fn mwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn mwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_cell((x + 3, y), true)?;
     grid.set_cell((x + 1, y + 1), true)?;
     grid.set_cell((x + 5, y + 1), true)?;
@@ -99,7 +99,7 @@ fn mwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x, 5, y + 4, true)
 }
 
-fn hwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+pub fn hwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x + 3, 2, y, true)?;
     grid.set_cell((x + 1, y + 1), true)?;
     grid.set_cell((x + 6, y + 1), true)?;
