@@ -176,7 +176,7 @@ pub trait Grid: GridPrivate {
     }
 }
 
-fn next_cell_state<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
+fn next_cell_state_individual<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
     let mut counter = 0;
 
     if x > 0 {
@@ -209,6 +209,27 @@ fn next_cell_state<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
         counter += 1;
     }
 
+    counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)))
+}
+
+fn next_cell_state_scan<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
+    let size = grid.size();
+    
+    fn get_range(v: GridUnit, upper: GridUnit) -> GridPoint {
+	(if v == 0 {0} else {v - 1}, if v == upper-1 {v} else {v + 1})
+    }
+    let (x_min, x_max) = get_range(x, size.0);
+    let (y_min, y_max) = get_range(y, size.1);
+    let mut counter = 0;
+
+    for y_scan in y_min..=y_max {
+	for x_scan in x_min..=x_max {
+	    if (x_scan != x || y_scan != y) && grid.get_cell_unchecked((x_scan, y_scan)){
+		counter += 1;
+	    }
+	}
+    }
+        
     counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)))
 }
 
@@ -266,7 +287,7 @@ impl Grid for Grid1dVec {
     fn update(&mut self) {
         self.inspect_mut(|(x, y), grid| {
             let index = grid.get_index((x, y));
-            grid.next_vec[index] = next_cell_state(grid, (x, y));
+            grid.next_vec[index] = next_cell_state_individual(grid, (x, y));
         });
         mem::swap(&mut self.current_vec, &mut self.next_vec);
         self.regulate_frame();
@@ -339,7 +360,7 @@ impl GridPrivate for Grid2dVec {
 impl Grid for Grid2dVec {
     fn update(&mut self) {
         self.inspect_mut(|(x, y), grid| {
-            grid.next_vec[y as usize][x as usize] = next_cell_state(grid, (x, y));
+            grid.next_vec[y as usize][x as usize] = next_cell_state_individual(grid, (x, y));
         });
         mem::swap(&mut self.current_vec, &mut self.next_vec);
         self.regulate_frame();
@@ -416,7 +437,7 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> 
 
     fn update(&mut self) {
         self.inspect_mut(|(x, y), grid| {
-            grid.next_arr[y as usize][x as usize] = next_cell_state(grid, (x, y));
+            grid.next_arr[y as usize][x as usize] = next_cell_state_scan(grid, (x, y));
         });
         self.current_arr = self.next_arr;
 
