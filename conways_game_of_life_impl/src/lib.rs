@@ -454,3 +454,15 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> 
         &mut self.current_arr[y as usize][x as usize]
     }
 }
+
+impl<const WIDTH: usize, const HEIGHT: usize> fmt::Display for Grid2dArr<WIDTH, HEIGHT> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.g_fmt('\u{2588}', ' ', f)
+    }
+}
+
+impl<const WIDTH: usize, const HEIGHT: usize> fmt::Debug for Grid2dArr<WIDTH, HEIGHT> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.g_fmt('X', '-', f)
+    }
+}
