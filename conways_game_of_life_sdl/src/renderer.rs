@@ -147,14 +147,14 @@ impl Renderer {
 
         let window_size = self.canvas.window().size();
         let grid_size = grid.size();
-        let cell_w = window_size.0 / grid_size.0;
-        let cell_h = window_size.1 / grid_size.1;
+        let cell_w = window_size.0 / grid_size.0 as u32;
+        let cell_h = window_size.1 / grid_size.1 as u32;
 
         grid.try_inspect::<String, _>(|(x, y), grid| {
             if grid.get_cell_unchecked((x, y)) {
                 self.canvas.fill_rect(Rect::new(
-                    (x * cell_w) as i32,
-                    (y * cell_h) as i32,
+                    (x as u32 * cell_w) as i32,
+                    (y as u32 * cell_h) as i32,
                     cell_w,
                     cell_h,
                 ))?;

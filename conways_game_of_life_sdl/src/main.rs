@@ -1,9 +1,10 @@
-use conways_game_of_life_sdl::{config, Grid, Grid2dVec, SDLInterfaceBuilder};
+use conways_game_of_life_sdl::{config, Grid, Grid2dArr, SDLInterfaceBuilder};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let size = (600, 600);
-    let mut grid = Grid2dVec::empty(size);
+    const WIDTH: usize = 600;
+    const HEIGHT: usize = 600;
+    let mut grid = Grid2dArr::<WIDTH, HEIGHT>::empty();
     config::random(&mut grid, 0.3)?;
     grid.set_fps(0);
 
@@ -11,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     interface_builder
         .renderer_builder
         .video_subsystem_command(move |mut vss| {
-            vss.window_size = size;
+            vss.window_size = (WIDTH as u32, HEIGHT as u32);
             vss
         });
 
