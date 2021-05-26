@@ -3,6 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[derive(Clone, Copy)]
 pub struct FrameRegulator {
     frame_duration: Duration,
     last: Instant,

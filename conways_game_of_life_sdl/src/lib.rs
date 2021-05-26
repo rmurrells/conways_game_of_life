@@ -68,10 +68,12 @@ where
 
     pub fn build(self, grid: G) -> IResult<SDLInterface<G>> {
         Ok(SDLInterface::<G> {
-            grid,
             renderer: self.renderer_builder.build()?,
             event_pump: self.sdl.event_pump()?,
             _sdl: self.sdl,
+	    init_grid: grid.clone(),
+            grid,
+	    pause: false,
         })
     }
 }
@@ -83,7 +85,9 @@ where
     _sdl: Sdl,
     renderer: Renderer,
     event_pump: EventPump,
+    init_grid: G,
     grid: G,
+    pause: bool,
 }
 
 impl<'a, G> SDLInterface<G>
@@ -97,8 +101,10 @@ where
 
     pub fn tick(&mut self) -> IResult<bool> {
         let run = self.poll();
-        self.renderer.render(&self.grid)?;
-        self.grid.update();
+	if !self.pause {
+            self.renderer.render(&self.grid)?;
+            self.grid.update();
+	}
         Ok(run)
     }
 
@@ -109,9 +115,14 @@ where
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => {
-                    return false;
-                }
+                } => return false,
+		Event::KeyDown {keycode: Some(key), ..} => {
+		    match key {
+			Keycode::R => self.grid = self.init_grid.clone(),
+			Keycode::Space => self.pause = !self.pause,
+			_ => (),
+		    }
+		}
                 _ => (),
             }
         }

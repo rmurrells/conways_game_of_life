@@ -30,7 +30,7 @@ pub enum SetLineOpt {
     Vertical,
 }
 
-pub trait Grid {
+pub trait Grid: Clone {
     fn empty(size: GridPoint) -> Self
     where
         Self: Sized;
@@ -38,7 +38,7 @@ pub trait Grid {
     fn set_cell(&mut self, point: GridPoint, b: bool) -> BResult<()>;
     fn set_fps(&mut self, fps: u64);
     fn update(&mut self);
-
+    
     fn get_cell_unchecked(&self, point: GridPoint) -> bool;
     fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
 
@@ -183,10 +183,13 @@ pub trait Grid {
     }
 }
 
+type LinearGridVec = Vec<bool>;
+
+#[derive(Clone)]
 pub struct LinearGrid {
     size: GridPoint,
-    current_vec: Vec<bool>,
-    next_vec: Vec<bool>,
+    current_vec: LinearGridVec,
+    next_vec: LinearGridVec,
     frame_regulator_opt: Option<FrameRegulator>,
 }
 
@@ -276,10 +279,13 @@ impl fmt::Debug for LinearGrid {
     }
 }
 
+type Grid2dVec = Vec<Vec<bool>>;
+
+#[derive(Clone)]
 pub struct Grid2d {
     size: GridPoint,
-    current_vec: Vec<Vec<bool>>,
-    next_vec: Vec<Vec<bool>>,
+    current_vec: Grid2dVec,
+    next_vec: Grid2dVec,
     frame_regulator_opt: Option<FrameRegulator>,
 }
 
