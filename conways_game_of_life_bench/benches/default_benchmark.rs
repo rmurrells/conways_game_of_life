@@ -27,7 +27,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("bgroup");
     group.measurement_time(Duration::from_secs(10));
 
-    let size = (1000, 1000);
+    let size = (600, 600);
     init_benchmark("linear", LinearGrid::empty(size), &mut group);
     init_benchmark("2d", Grid2d::empty(size), &mut group);
 
