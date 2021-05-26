@@ -4,7 +4,7 @@ mod frame_regulator;
 use frame_regulator::FrameRegulator;
 use std::{error::Error, fmt, mem};
 
-pub type GridUnit = u32;
+pub type GridUnit = u16;
 pub type GridPoint = (GridUnit, GridUnit);
 
 fn grid_point_contained(point: GridPoint, size: GridPoint) -> bool {
@@ -35,6 +35,7 @@ pub(crate) mod private {
     pub trait GridPrivate: Clone {
         fn _size(&self) -> GridPoint;
         fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator>;
+        fn get_next_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
 
         fn regulate_frame(&mut self) {
             if let Some(frame_regulator) = &mut self.frame_regulator_opt() {
@@ -212,25 +213,81 @@ fn next_cell_state_individual<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
     counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)))
 }
 
+#[allow(dead_code)]
 fn next_cell_state_scan<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
     let size = grid.size();
-    
+
     fn get_range(v: GridUnit, upper: GridUnit) -> GridPoint {
-	(if v == 0 {0} else {v - 1}, if v == upper-1 {v} else {v + 1})
+        (
+            if v == 0 { 0 } else { v - 1 },
+            if v == upper - 1 { v } else { v + 1 },
+        )
     }
     let (x_min, x_max) = get_range(x, size.0);
     let (y_min, y_max) = get_range(y, size.1);
     let mut counter = 0;
 
     for y_scan in y_min..=y_max {
-	for x_scan in x_min..=x_max {
-	    if (x_scan != x || y_scan != y) && grid.get_cell_unchecked((x_scan, y_scan)){
-		counter += 1;
-	    }
-	}
+        for x_scan in x_min..=x_max {
+            if (x_scan != x || y_scan != y) && grid.get_cell_unchecked((x_scan, y_scan)) {
+                counter += 1;
+            }
+        }
     }
-        
+
     counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)))
+}
+
+fn set_next_state<G: Grid>(grid: &mut G) {
+    let size = grid.size();
+    let x_max = size.0 - 1;
+    let y_max = size.1 - 1;
+
+    for y in 1..y_max {
+        for x in 1..x_max {
+            let mut counter = 0;
+
+            if grid.get_cell_unchecked((x - 1, y - 1)) {
+                counter += 1;
+            }
+            if grid.get_cell_unchecked((x, y - 1)) {
+                counter += 1;
+            }
+            if grid.get_cell_unchecked((x + 1, y - 1)) {
+                counter += 1;
+            }
+
+            if grid.get_cell_unchecked((x - 1, y)) {
+                counter += 1;
+            }
+            if grid.get_cell_unchecked((x + 1, y)) {
+                counter += 1;
+            }
+
+            if grid.get_cell_unchecked((x - 1, y + 1)) {
+                counter += 1;
+            }
+            if grid.get_cell_unchecked((x, y + 1)) {
+                counter += 1;
+            }
+            if grid.get_cell_unchecked((x + 1, y + 1)) {
+                counter += 1;
+            }
+            *grid.get_next_cell_unchecked_mut((x, y)) =
+                counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)));
+        }
+    }
+
+    for x in 0..size.0 {
+        *grid.get_next_cell_unchecked_mut((x, 0)) = next_cell_state_individual(grid, (x, 0));
+        *grid.get_next_cell_unchecked_mut((x, y_max)) =
+            next_cell_state_individual(grid, (x, y_max));
+    }
+    for y in 1..y_max {
+        *grid.get_next_cell_unchecked_mut((0, y)) = next_cell_state_individual(grid, (0, y));
+        *grid.get_next_cell_unchecked_mut((x_max, y)) =
+            next_cell_state_individual(grid, (x_max, y));
+    }
 }
 
 type Grid1dVecContainer = Vec<bool>;
@@ -245,7 +302,7 @@ pub struct Grid1dVec {
 
 impl Grid1dVec {
     pub fn empty(size: GridPoint) -> Self {
-        let next_vec = vec![false; (size.0 * size.1) as usize];
+        let next_vec = vec![false; size.0 as usize * size.1 as usize];
         Self {
             size,
             current_vec: next_vec.clone(),
@@ -272,6 +329,11 @@ impl GridPrivate for Grid1dVec {
         &mut self.frame_regulator_opt
     }
 
+    fn get_next_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool {
+        let index = self.get_index(point);
+        &mut self.next_vec[index]
+    }
+
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, b) in self.as_slice().iter().enumerate() {
             write!(f, "{}", if *b { tc } else { fc })?;
@@ -285,10 +347,7 @@ impl GridPrivate for Grid1dVec {
 
 impl Grid for Grid1dVec {
     fn update(&mut self) {
-        self.inspect_mut(|(x, y), grid| {
-            let index = grid.get_index((x, y));
-            grid.next_vec[index] = next_cell_state_individual(grid, (x, y));
-        });
+        set_next_state(self);
         mem::swap(&mut self.current_vec, &mut self.next_vec);
         self.regulate_frame();
     }
@@ -346,6 +405,10 @@ impl GridPrivate for Grid2dVec {
         &mut self.frame_regulator_opt
     }
 
+    fn get_next_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
+        &mut self.next_vec[y as usize][x as usize]
+    }
+
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for row in &self.current_vec {
             for b in row {
@@ -359,9 +422,7 @@ impl GridPrivate for Grid2dVec {
 
 impl Grid for Grid2dVec {
     fn update(&mut self) {
-        self.inspect_mut(|(x, y), grid| {
-            grid.next_vec[y as usize][x as usize] = next_cell_state_individual(grid, (x, y));
-        });
+        set_next_state(self);
         mem::swap(&mut self.current_vec, &mut self.next_vec);
         self.regulate_frame();
     }
@@ -415,6 +476,10 @@ impl<const WIDTH: usize, const HEIGHT: usize> private::GridPrivate for Grid2dArr
         &mut self.frame_regulator_opt
     }
 
+    fn get_next_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
+        &mut self.next_arr[y as usize][x as usize]
+    }
+
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for row in &self.current_arr {
             for b in row {
@@ -436,14 +501,9 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> 
     }
 
     fn update(&mut self) {
-        self.inspect_mut(|(x, y), grid| {
-            grid.next_arr[y as usize][x as usize] = next_cell_state_scan(grid, (x, y));
-        });
+        set_next_state(self);
         self.current_arr = self.next_arr;
-
-        if let Some(frame_regulator) = &mut self.frame_regulator_opt {
-            frame_regulator.regulate();
-        }
+        self.regulate_frame();
     }
 
     fn get_cell_unchecked(&self, (x, y): GridPoint) -> bool {

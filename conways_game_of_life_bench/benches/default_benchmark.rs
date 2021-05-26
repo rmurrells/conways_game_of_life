@@ -6,7 +6,7 @@ use std::time::Duration;
 
 fn init_benchmark<G: Grid>(name: &str, mut grid: G, group: &mut BenchmarkGroup<'_, WallTime>) {
     grid.set_fps(0);
-    config::test(&mut grid).unwrap();
+    config::random(&mut grid, 0.25).unwrap();
 
     group.bench_function(name, |b| {
         b.iter(|| {
