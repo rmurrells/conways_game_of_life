@@ -112,11 +112,11 @@ pub fn random<G: Grid>(grid: &mut G, mut density: f64) -> BResult<()> {
     density = density.clamp(0., 1.);
     let mut rng = <StdRng as SeedableRng>::seed_from_u64(0);
     grid.try_inspect_mut(|point, grid| {
-	if rng.gen::<f64>() <= density {
-	    grid.set_cell(point, true)
-	} else {
-	    Ok(())
-	}
+        if rng.gen::<f64>() <= density {
+            grid.set_cell(point, true)
+        } else {
+            Ok(())
+        }
     })
 }
 

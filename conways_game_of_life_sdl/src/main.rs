@@ -6,7 +6,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut grid = Grid2d::empty(size);
     config::random(&mut grid, 0.3)?;
     grid.set_fps(0);
-    
+
     let mut interface_builder = SDLInterfaceBuilder::new()?;
     interface_builder
         .renderer_builder
@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             vss.window_size = size;
             vss
         });
-    
+
     let mut interface = interface_builder.build(grid)?;
     interface.run()?;
     Ok(())

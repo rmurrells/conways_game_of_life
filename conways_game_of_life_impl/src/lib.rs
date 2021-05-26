@@ -38,7 +38,7 @@ pub trait Grid: Clone {
     fn set_cell(&mut self, point: GridPoint, b: bool) -> BResult<()>;
     fn set_fps(&mut self, fps: u64);
     fn update(&mut self);
-    
+
     fn get_cell_unchecked(&self, point: GridPoint) -> bool;
     fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
 
@@ -75,7 +75,7 @@ pub trait Grid: Clone {
         let size = self.size();
         for y in 0..size.1 {
             for x in 0..size.0 {
-		f((x, y), self)?;
+                f((x, y), self)?;
             }
         }
         Ok(())
@@ -85,21 +85,24 @@ pub trait Grid: Clone {
         let size = self.size();
         for y in 0..size.1 {
             for x in 0..size.0 {
-		f((x, y), self);
-	    }
-	}
+                f((x, y), self);
+            }
+        }
     }
 
-    fn try_inspect_mut<E, F: FnMut(GridPoint, &mut Self) -> Result<(), E>>(&mut self, mut f: F) -> Result<(), E> {
+    fn try_inspect_mut<E, F: FnMut(GridPoint, &mut Self) -> Result<(), E>>(
+        &mut self,
+        mut f: F,
+    ) -> Result<(), E> {
         let size = self.size();
         for y in 0..size.1 {
             for x in 0..size.0 {
-		f((x, y), self)?;
-	    }
-	}
-	Ok(())
+                f((x, y), self)?;
+            }
+        }
+        Ok(())
     }
-    
+
     fn g_fmt(&self, _tc: char, _fc: char, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Ok(())
     }
@@ -236,10 +239,10 @@ impl Grid for LinearGrid {
     }
 
     fn update(&mut self) {
-	self.inspect_mut(|(x, y), grid| {
+        self.inspect_mut(|(x, y), grid| {
             let index = grid.get_index((x, y));
             grid.next_vec[index] = grid.next_cell_state((x, y));
-	});
+        });
         mem::swap(&mut self.current_vec, &mut self.next_vec);
 
         if let Some(frame_regulator) = &mut self.frame_regulator_opt {
@@ -324,9 +327,9 @@ impl Grid for Grid2d {
     }
 
     fn update(&mut self) {
-	self.inspect_mut(|(x, y), grid| {
-	    grid.next_vec[y as usize][x as usize] = grid.next_cell_state((x, y));
-	});
+        self.inspect_mut(|(x, y), grid| {
+            grid.next_vec[y as usize][x as usize] = grid.next_cell_state((x, y));
+        });
         mem::swap(&mut self.current_vec, &mut self.next_vec);
 
         if let Some(frame_regulator) = &mut self.frame_regulator_opt {
