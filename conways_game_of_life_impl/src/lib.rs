@@ -233,12 +233,10 @@ impl Grid for LinearGrid {
     }
 
     fn update(&mut self) {
-        for x in 0..self.size.0 {
-            for y in 0..self.size.1 {
-                let index = self.get_index((x, y));
-                self.next_vec[index] = self.next_cell_state((x, y));
-            }
-        }
+	self.inspect_mut(|(x, y), grid| {
+            let index = grid.get_index((x, y));
+            grid.next_vec[index] = grid.next_cell_state((x, y));
+	});
         mem::swap(&mut self.current_vec, &mut self.next_vec);
 
         if let Some(frame_regulator) = &mut self.frame_regulator_opt {
@@ -320,11 +318,9 @@ impl Grid for Grid2d {
     }
 
     fn update(&mut self) {
-        for x in 0..self.size.0 {
-            for y in 0..self.size.1 {
-                self.next_vec[y as usize][x as usize] = self.next_cell_state((x, y));
-            }
-        }
+	self.inspect_mut(|(x, y), grid| {
+	    grid.next_vec[y as usize][x as usize] = grid.next_cell_state((x, y));
+	});
         mem::swap(&mut self.current_vec, &mut self.next_vec);
 
         if let Some(frame_regulator) = &mut self.frame_regulator_opt {
