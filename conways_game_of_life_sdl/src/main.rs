@@ -1,9 +1,9 @@
-use conways_game_of_life_sdl::{config, Grid, Grid2d, SDLInterfaceBuilder};
+use conways_game_of_life_sdl::{config, Grid, Grid2dVec, SDLInterfaceBuilder};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let size = (600, 600);
-    let mut grid = Grid2d::empty(size);
+    let mut grid = Grid2dVec::empty(size);
     config::random(&mut grid, 0.3)?;
     grid.set_fps(0);
 

@@ -33,17 +33,17 @@ pub enum SetLineOpt {
 pub(crate) mod private {
     use super::*;
     pub trait GridPrivate: Clone {
-	fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator>;
+        fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator>;
 
-	fn regulate_frame(&mut self) {
+        fn regulate_frame(&mut self) {
             if let Some(frame_regulator) = &mut self.frame_regulator_opt() {
-		frame_regulator.regulate();
+                frame_regulator.regulate();
             }
-	}
-	
-	fn g_fmt(&self, _tc: char, _fc: char, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        }
+
+        fn g_fmt(&self, _tc: char, _fc: char, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
             Ok(())
-	}
+        }
     }
 }
 use private::GridPrivate;
@@ -62,12 +62,12 @@ pub trait Grid: GridPrivate {
             None
         }
     }
-    
+
     fn set_cell(&mut self, point: GridPoint, b: bool) -> BResult<()> {
         *self.get_cell_mut(point)? = b;
         Ok(())
     }
-    
+
     fn get_cell(&self, point: GridPoint) -> bool {
         if grid_point_contained(point, self.size()) {
             self.get_cell_unchecked(point)
@@ -208,17 +208,17 @@ pub trait Grid: GridPrivate {
     }
 }
 
-type LinearGridVec = Vec<bool>;
+type Grid1dVecContainer = Vec<bool>;
 
 #[derive(Clone)]
-pub struct LinearGrid {
+pub struct Grid1dVec {
     size: GridPoint,
-    current_vec: LinearGridVec,
-    next_vec: LinearGridVec,
+    current_vec: Grid1dVecContainer,
+    next_vec: Grid1dVecContainer,
     frame_regulator_opt: Option<FrameRegulator>,
 }
 
-impl LinearGrid {
+impl Grid1dVec {
     pub fn empty(size: GridPoint) -> Self {
         let next_vec = vec![false; (size.0 * size.1) as usize];
         Self {
@@ -238,11 +238,11 @@ impl LinearGrid {
     }
 }
 
-impl GridPrivate for LinearGrid {
+impl GridPrivate for Grid1dVec {
     fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
-	&mut self.frame_regulator_opt
+        &mut self.frame_regulator_opt
     }
-    
+
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, b) in self.as_slice().iter().enumerate() {
             write!(f, "{}", if *b { tc } else { fc })?;
@@ -254,7 +254,7 @@ impl GridPrivate for LinearGrid {
     }
 }
 
-impl Grid for LinearGrid {
+impl Grid for Grid1dVec {
     fn size(&self) -> GridPoint {
         self.size
     }
@@ -265,7 +265,7 @@ impl Grid for LinearGrid {
             grid.next_vec[index] = grid.next_cell_state((x, y));
         });
         mem::swap(&mut self.current_vec, &mut self.next_vec);
-	self.regulate_frame();
+        self.regulate_frame();
     }
 
     fn get_cell_unchecked(&self, point: GridPoint) -> bool {
@@ -278,29 +278,29 @@ impl Grid for LinearGrid {
     }
 }
 
-impl fmt::Display for LinearGrid {
+impl fmt::Display for Grid1dVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.g_fmt('\u{2588}', ' ', f)
     }
 }
 
-impl fmt::Debug for LinearGrid {
+impl fmt::Debug for Grid1dVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.g_fmt('X', '-', f)
     }
 }
 
-type Grid2dVec = Vec<Vec<bool>>;
+type Grid2dVecContainer = Vec<Vec<bool>>;
 
 #[derive(Clone)]
-pub struct Grid2d {
+pub struct Grid2dVec {
     size: GridPoint,
-    current_vec: Grid2dVec,
-    next_vec: Grid2dVec,
+    current_vec: Grid2dVecContainer,
+    next_vec: Grid2dVecContainer,
     frame_regulator_opt: Option<FrameRegulator>,
 }
 
-impl Grid2d {
+impl Grid2dVec {
     pub fn empty(size: GridPoint) -> Self {
         let next_vec = vec![vec![false; size.0 as usize]; size.1 as usize];
         Self {
@@ -312,11 +312,11 @@ impl Grid2d {
     }
 }
 
-impl GridPrivate for Grid2d {
+impl GridPrivate for Grid2dVec {
     fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
-	&mut self.frame_regulator_opt
+        &mut self.frame_regulator_opt
     }
-    
+
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for v in &self.current_vec {
             for b in v {
@@ -328,17 +328,17 @@ impl GridPrivate for Grid2d {
     }
 }
 
-impl Grid for Grid2d {
+impl Grid for Grid2dVec {
     fn size(&self) -> GridPoint {
         self.size
     }
-    
+
     fn update(&mut self) {
         self.inspect_mut(|(x, y), grid| {
             grid.next_vec[y as usize][x as usize] = grid.next_cell_state((x, y));
         });
         mem::swap(&mut self.current_vec, &mut self.next_vec);
-	self.regulate_frame();
+        self.regulate_frame();
     }
 
     fn get_cell_unchecked(&self, (x, y): GridPoint) -> bool {
@@ -350,22 +350,24 @@ impl Grid for Grid2d {
     }
 }
 
-impl fmt::Display for Grid2d {
+impl fmt::Display for Grid2dVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.g_fmt('\u{2588}', ' ', f)
     }
 }
 
-impl fmt::Debug for Grid2d {
+impl fmt::Debug for Grid2dVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.g_fmt('X', '-', f)
     }
 }
 
+type Grid2dArrContainer<const WIDTH: usize, const HEIGHT: usize> = [[bool; WIDTH]; HEIGHT];
+
 #[derive(Clone)]
 pub struct Grid2dArr<const WIDTH: usize, const HEIGHT: usize> {
-    current_arr: [[bool; WIDTH]; HEIGHT],
-    next_arr: [[bool; WIDTH]; HEIGHT],
+    current_arr: Grid2dArrContainer<WIDTH, HEIGHT>,
+    next_arr: Grid2dArrContainer<WIDTH, HEIGHT>,
     frame_regulator_opt: Option<FrameRegulator>,
 }
 
@@ -381,7 +383,7 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid2dArr<WIDTH, HEIGHT> {
 
 impl<const WIDTH: usize, const HEIGHT: usize> private::GridPrivate for Grid2dArr<WIDTH, HEIGHT> {
     fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
-	&mut self.frame_regulator_opt
+        &mut self.frame_regulator_opt
     }
 
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -412,7 +414,7 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> 
         self.inspect_mut(|(x, y), grid| {
             grid.next_arr[y as usize][x as usize] = grid.next_cell_state((x, y));
         });
-	self.current_arr = self.next_arr;
+        self.current_arr = self.next_arr;
 
         if let Some(frame_regulator) = &mut self.frame_regulator_opt {
             frame_regulator.regulate();

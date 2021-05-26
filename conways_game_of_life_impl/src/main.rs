@@ -1,7 +1,7 @@
-use conways_game_of_life_impl::{config, BResult, Grid, Grid2d};
+use conways_game_of_life_impl::{config, BResult, Grid, Grid2dVec};
 
 fn main() -> BResult<()> {
-    let mut grid = Grid2d::empty((80, 21));
+    let mut grid = Grid2dVec::empty((80, 21));
     config::test(&mut grid)?;
 
     for _ in 0..1000 {

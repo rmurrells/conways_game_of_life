@@ -1,14 +1,16 @@
-use criterion::{BenchmarkGroup, criterion_group, criterion_main, Criterion, measurement::WallTime};
 use conways_game_of_life_impl::{config, Grid, Grid2d, Grid2dArr, GridUnit, LinearGrid};
+use criterion::{
+    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+};
 use std::time::Duration;
 
 fn init_benchmark<G: Grid>(name: &str, mut grid: G, group: &mut BenchmarkGroup<'_, WallTime>) {
     grid.set_fps(0);
     config::test(&mut grid).unwrap();
-    
+
     group.bench_function(name, |b| {
         b.iter(|| {
-	    grid.update();
+            grid.update();
         })
     });
 }
