@@ -1,8 +1,6 @@
-mod frame_regulator;
 mod renderer;
 
 pub use conways_game_of_life_impl::{config, BResult, Grid, Grid2d, LinearGrid};
-use frame_regulator::FrameRegulator;
 use renderer::Renderer;
 pub use renderer::{RendererBuildStage, RendererBuilder};
 use sdl2::{
@@ -51,7 +49,6 @@ where
 {
     pub sdl: Sdl,
     pub renderer_builder: RendererBuilder,
-    pub frame_regulator_opt: Option<FrameRegulator>,
     phantom: PhantomData<G>,
 }
 
@@ -65,7 +62,6 @@ where
         Ok(Self {
             sdl,
             renderer_builder,
-            frame_regulator_opt: Some(FrameRegulator::fps(10)),
             phantom: PhantomData,
         })
     }
@@ -75,7 +71,6 @@ where
             grid,
             renderer: self.renderer_builder.build()?,
             event_pump: self.sdl.event_pump()?,
-            frame_regulator_opt: self.frame_regulator_opt,
             _sdl: self.sdl,
         })
     }
@@ -89,7 +84,6 @@ where
     renderer: Renderer,
     event_pump: EventPump,
     grid: G,
-    frame_regulator_opt: Option<FrameRegulator>,
 }
 
 impl<'a, G> SDLInterface<G>
@@ -97,11 +91,7 @@ where
     G: Grid,
 {
     pub fn run(&mut self) -> IResult<()> {
-        while self.tick()? {
-            if let Some(frame_regulator) = &mut self.frame_regulator_opt {
-                frame_regulator.regulate();
-            }
-        }
+        while self.tick()? {}
         Ok(())
     }
 

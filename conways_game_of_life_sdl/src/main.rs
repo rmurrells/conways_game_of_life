@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             vss.window_size = (600, 600);
             vss
         });
-    
+
     let mut interface = interface_builder.build(grid)?;
     interface.run()?;
     Ok(())

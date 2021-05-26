@@ -1,5 +1,7 @@
 pub mod config;
+mod frame_regulator;
 
+use frame_regulator::FrameRegulator;
 use std::{error::Error, fmt, mem};
 
 pub type GridUnit = u32;
@@ -34,8 +36,9 @@ pub trait Grid {
         Self: Sized;
     fn size(&self) -> GridPoint;
     fn set_cell(&mut self, point: GridPoint, b: bool) -> BResult<()>;
+    fn set_fps(&mut self, fps: u64);
     fn update(&mut self);
-    
+
     fn get_cell_unchecked(&self, point: GridPoint) -> bool;
     fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
 
@@ -57,24 +60,27 @@ pub trait Grid {
     }
 
     fn inspect<F: FnMut(GridPoint, bool)>(&self, mut f: F) {
-	let size = self.size();
-	for y in 0..size.1 {
-	    for x in 0..size.0 {
-		f((x, y), self.get_cell_unchecked((x, y)));
-	    }
-	}
+        let size = self.size();
+        for y in 0..size.1 {
+            for x in 0..size.0 {
+                f((x, y), self.get_cell_unchecked((x, y)));
+            }
+        }
     }
 
-    fn try_inspect<E, F: FnMut(GridPoint, bool) -> Result<(), E>>(&self, mut f: F) -> Result<(), E> {
-	let size = self.size();
-	for y in 0..size.1 {
-	    for x in 0..size.0 {
-		f((x, y), self.get_cell_unchecked((x, y)))?;
-	    }
-	}
-	Ok(())
+    fn try_inspect<E, F: FnMut(GridPoint, bool) -> Result<(), E>>(
+        &self,
+        mut f: F,
+    ) -> Result<(), E> {
+        let size = self.size();
+        for y in 0..size.1 {
+            for x in 0..size.0 {
+                f((x, y), self.get_cell_unchecked((x, y)))?;
+            }
+        }
+        Ok(())
     }
-    
+
     fn g_fmt(&self, _tc: char, _fc: char, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Ok(())
     }
@@ -269,6 +275,7 @@ pub struct LinearGrid {
     size: GridPoint,
     current_vec: Vec<bool>,
     next_vec: Vec<bool>,
+    frame_regulator_opt: Option<FrameRegulator>,
 }
 
 impl LinearGrid {
@@ -278,6 +285,7 @@ impl LinearGrid {
             size,
             current_vec: next_vec.clone(),
             next_vec,
+            frame_regulator_opt: Some(FrameRegulator::fps(10)),
         }
     }
 
@@ -304,6 +312,14 @@ impl Grid for LinearGrid {
         Ok(())
     }
 
+    fn set_fps(&mut self, fps: u64) {
+        self.frame_regulator_opt = if fps != 0 {
+            Some(FrameRegulator::fps(fps))
+        } else {
+            None
+        }
+    }
+
     fn update(&mut self) {
         for x in 0..self.size.0 {
             for y in 0..self.size.1 {
@@ -312,6 +328,10 @@ impl Grid for LinearGrid {
             }
         }
         mem::swap(&mut self.current_vec, &mut self.next_vec);
+
+        if let Some(frame_regulator) = &mut self.frame_regulator_opt {
+            frame_regulator.regulate();
+        }
     }
 
     fn get_cell_unchecked(&self, point: GridPoint) -> bool {
@@ -322,7 +342,7 @@ impl Grid for LinearGrid {
         let index = self.get_index(point);
         &mut self.current_vec[index]
     }
-    
+
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, b) in self.as_slice().iter().enumerate() {
             write!(f, "{}", if *b { tc } else { fc })?;
@@ -350,6 +370,7 @@ pub struct Grid2d {
     size: GridPoint,
     current_vec: Vec<Vec<bool>>,
     next_vec: Vec<Vec<bool>>,
+    frame_regulator_opt: Option<FrameRegulator>,
 }
 
 impl Grid2d {
@@ -359,6 +380,7 @@ impl Grid2d {
             size,
             current_vec: next_vec.clone(),
             next_vec,
+            frame_regulator_opt: Some(FrameRegulator::fps(10)),
         }
     }
 }
@@ -377,6 +399,14 @@ impl Grid for Grid2d {
         Ok(())
     }
 
+    fn set_fps(&mut self, fps: u64) {
+        self.frame_regulator_opt = if fps != 0 {
+            Some(FrameRegulator::fps(fps))
+        } else {
+            None
+        }
+    }
+
     fn update(&mut self) {
         for x in 0..self.size.0 {
             for y in 0..self.size.1 {
@@ -384,6 +414,10 @@ impl Grid for Grid2d {
             }
         }
         mem::swap(&mut self.current_vec, &mut self.next_vec);
+
+        if let Some(frame_regulator) = &mut self.frame_regulator_opt {
+            frame_regulator.regulate();
+        }
     }
 
     fn get_cell_unchecked(&self, (x, y): GridPoint) -> bool {
@@ -393,7 +427,7 @@ impl Grid for Grid2d {
     fn get_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
         &mut self.current_vec[y as usize][x as usize]
     }
-    
+
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for v in &self.current_vec {
             for b in v {

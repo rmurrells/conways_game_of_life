@@ -150,7 +150,7 @@ impl Renderer {
         let cell_w = window_size.0 / grid_size.0;
         let cell_h = window_size.1 / grid_size.1;
 
-	grid.try_inspect::<String, _>(|(x, y), b| {
+        grid.try_inspect::<String, _>(|(x, y), b| {
             if b {
                 self.canvas.fill_rect(Rect::new(
                     (x * cell_w) as i32,
@@ -159,8 +159,8 @@ impl Renderer {
                     cell_h,
                 ))?;
             }
-	    Ok(())
-	})?;
+            Ok(())
+        })?;
 
         self.canvas.present();
         Ok(())
