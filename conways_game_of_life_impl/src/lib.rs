@@ -81,6 +81,25 @@ pub trait Grid {
         Ok(())
     }
 
+    fn inspect_mut<F: FnMut(GridPoint, &mut Self)>(&mut self, mut f: F) {
+        let size = self.size();
+        for y in 0..size.1 {
+            for x in 0..size.0 {
+		f((x, y), self);
+	    }
+	}
+    }
+
+    fn try_inspect_mut<E, F: FnMut(GridPoint, &mut Self) -> Result<(), E>>(&mut self, mut f: F) -> Result<(), E> {
+        let size = self.size();
+        for y in 0..size.1 {
+            for x in 0..size.0 {
+		f((x, y), self)?;
+	    }
+	}
+	Ok(())
+    }
+    
     fn g_fmt(&self, _tc: char, _fc: char, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Ok(())
     }

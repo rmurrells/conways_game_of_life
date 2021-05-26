@@ -1,4 +1,5 @@
 use crate::{BResult, Grid, GridPoint};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 fn block<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_hline(x, 2, y, true)?;
@@ -44,8 +45,8 @@ fn toad<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
 }
 
 fn beacon<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
-    grid.block((x, y))?;
-    grid.block((x + 2, y + 2))
+    block(grid, (x, y))?;
+    block(grid, (x + 2, y + 2))
 }
 
 fn pulsar<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
@@ -105,6 +106,18 @@ fn hwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_cell((x + 6, y + 3), true)?;
     grid.set_vline(y + 2, 2, x, true)?;
     grid.set_hline(x, 6, y + 4, true)
+}
+
+pub fn random<G: Grid>(grid: &mut G, mut density: f64) -> BResult<()> {
+    density = density.clamp(0., 1.);
+    let mut rng = <StdRng as SeedableRng>::seed_from_u64(0);
+    grid.try_inspect_mut(|point, grid| {
+	if rng.gen::<f64>() <= density {
+	    grid.set_cell(point, true)
+	} else {
+	    Ok(())
+	}
+    })
 }
 
 pub fn test<G: Grid>(grid: &mut G) -> BResult<()> {
