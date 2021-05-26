@@ -35,7 +35,7 @@ pub trait Grid {
     fn size(&self) -> GridPoint;
     fn set_cell(&mut self, point: GridPoint, b: bool) -> BResult<()>;
     fn update(&mut self);
-
+    
     fn get_cell_unchecked(&self, point: GridPoint) -> bool;
     fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
 
@@ -56,6 +56,25 @@ pub trait Grid {
         }
     }
 
+    fn inspect<F: FnMut(GridPoint, bool)>(&self, mut f: F) {
+	let size = self.size();
+	for y in 0..size.1 {
+	    for x in 0..size.0 {
+		f((x, y), self.get_cell_unchecked((x, y)));
+	    }
+	}
+    }
+
+    fn try_inspect<E, F: FnMut(GridPoint, bool) -> Result<(), E>>(&self, mut f: F) -> Result<(), E> {
+	let size = self.size();
+	for y in 0..size.1 {
+	    for x in 0..size.0 {
+		f((x, y), self.get_cell_unchecked((x, y)))?;
+	    }
+	}
+	Ok(())
+    }
+    
     fn g_fmt(&self, _tc: char, _fc: char, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Ok(())
     }
@@ -285,15 +304,6 @@ impl Grid for LinearGrid {
         Ok(())
     }
 
-    fn get_cell_unchecked(&self, point: GridPoint) -> bool {
-        self.current_vec[self.get_index(point)]
-    }
-
-    fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool {
-        let index = self.get_index(point);
-        &mut self.current_vec[index]
-    }
-
     fn update(&mut self) {
         for x in 0..self.size.0 {
             for y in 0..self.size.1 {
@@ -304,6 +314,15 @@ impl Grid for LinearGrid {
         mem::swap(&mut self.current_vec, &mut self.next_vec);
     }
 
+    fn get_cell_unchecked(&self, point: GridPoint) -> bool {
+        self.current_vec[self.get_index(point)]
+    }
+
+    fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool {
+        let index = self.get_index(point);
+        &mut self.current_vec[index]
+    }
+    
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, b) in self.as_slice().iter().enumerate() {
             write!(f, "{}", if *b { tc } else { fc })?;
@@ -358,14 +377,6 @@ impl Grid for Grid2d {
         Ok(())
     }
 
-    fn get_cell_unchecked(&self, (x, y): GridPoint) -> bool {
-        self.current_vec[y as usize][x as usize]
-    }
-
-    fn get_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
-        &mut self.current_vec[y as usize][x as usize]
-    }
-
     fn update(&mut self) {
         for x in 0..self.size.0 {
             for y in 0..self.size.1 {
@@ -375,6 +386,14 @@ impl Grid for Grid2d {
         mem::swap(&mut self.current_vec, &mut self.next_vec);
     }
 
+    fn get_cell_unchecked(&self, (x, y): GridPoint) -> bool {
+        self.current_vec[y as usize][x as usize]
+    }
+
+    fn get_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
+        &mut self.current_vec[y as usize][x as usize]
+    }
+    
     fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for v in &self.current_vec {
             for b in v {
