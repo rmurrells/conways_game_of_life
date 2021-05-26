@@ -362,3 +362,68 @@ impl fmt::Debug for Grid2d {
     }
 }
 
+#[derive(Clone)]
+pub struct Grid2dArr<const WIDTH: usize, const HEIGHT: usize> {
+    current_arr: [[bool; WIDTH]; HEIGHT],
+    next_arr: [[bool; WIDTH]; HEIGHT],
+    frame_regulator_opt: Option<FrameRegulator>,
+}
+
+impl<const WIDTH: usize, const HEIGHT: usize> Grid2dArr<WIDTH, HEIGHT> {
+    pub fn empty() -> Self {
+        Self {
+            current_arr: [[false; WIDTH]; HEIGHT],
+            next_arr: [[false; WIDTH]; HEIGHT],
+            frame_regulator_opt: Some(FrameRegulator::fps(10)),
+        }
+    }
+}
+
+impl<const WIDTH: usize, const HEIGHT: usize> private::GridPrivate for Grid2dArr<WIDTH, HEIGHT> {
+    fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
+	&mut self.frame_regulator_opt
+    }
+
+    fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for v in &self.current_arr {
+            for b in v {
+                write!(f, "{}", if *b { tc } else { fc })?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
+    }
+}
+
+impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> {
+    fn size(&self) -> GridPoint {
+        (WIDTH as GridUnit, HEIGHT as GridUnit)
+    }
+
+    fn set_fps(&mut self, fps: u64) {
+        self.frame_regulator_opt = if fps != 0 {
+            Some(FrameRegulator::fps(fps))
+        } else {
+            None
+        }
+    }
+
+    fn update(&mut self) {
+        self.inspect_mut(|(x, y), grid| {
+            grid.next_arr[y as usize][x as usize] = grid.next_cell_state((x, y));
+        });
+	self.current_arr = self.next_arr;
+
+        if let Some(frame_regulator) = &mut self.frame_regulator_opt {
+            frame_regulator.regulate();
+        }
+    }
+
+    fn get_cell_unchecked(&self, (x, y): GridPoint) -> bool {
+        self.current_arr[y as usize][x as usize]
+    }
+
+    fn get_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
+        &mut self.current_arr[y as usize][x as usize]
+    }
+}
