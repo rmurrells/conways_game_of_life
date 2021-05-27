@@ -317,7 +317,7 @@ impl Grid1dVec {
     }
 
     fn get_index(&self, point: GridPoint) -> usize {
-        (point.0 + point.1 * self.size.0) as usize
+        point.0 as usize + point.1 as usize * self.size.0 as usize
     }
 }
 
