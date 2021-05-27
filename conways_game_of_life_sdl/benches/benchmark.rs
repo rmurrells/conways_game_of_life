@@ -1,4 +1,6 @@
-use conways_game_of_life_sdl::{config, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridUnit, SDLInterfaceBuilder};
+use conways_game_of_life_sdl::{
+    config, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridUnit, SDLInterfaceBuilder,
+};
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
@@ -20,7 +22,7 @@ fn init_benchmark<G: Grid>(name: &str, mut grid: G, group: &mut BenchmarkGroup<'
     let mut interface = interface_builder.build(grid).unwrap();
     group.bench_function(name, |b| {
         b.iter(|| {
-	    interface.tick().unwrap();
+            interface.tick().unwrap();
         })
     });
 }
