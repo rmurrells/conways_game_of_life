@@ -307,7 +307,7 @@ impl Grid1dVec {
             size,
             current_vec: next_vec.clone(),
             next_vec,
-            frame_regulator_opt: Some(FrameRegulator::fps(10)),
+            frame_regulator_opt: None,
         }
     }
 
@@ -391,7 +391,7 @@ impl Grid2dVec {
             size,
             current_vec: next_vec.clone(),
             next_vec,
-            frame_regulator_opt: Some(FrameRegulator::fps(10)),
+            frame_regulator_opt: None,
         }
     }
 }
@@ -462,7 +462,7 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid2dArr<WIDTH, HEIGHT> {
         Self {
             current_arr: [[false; WIDTH]; HEIGHT],
             next_arr: [[false; WIDTH]; HEIGHT],
-            frame_regulator_opt: Some(FrameRegulator::fps(10)),
+            frame_regulator_opt: None,
         }
     }
 }
