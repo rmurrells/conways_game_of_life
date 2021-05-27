@@ -519,3 +519,39 @@ impl<const WIDTH: usize, const HEIGHT: usize> fmt::Debug for Grid2dArr<WIDTH, HE
         self._g_fmt('X', '-', f)
     }
 }
+
+impl<G: GridPrivate> GridPrivate for Box<G> {
+    fn _size(&self) -> GridPoint {
+        G::_size(self)
+    }
+
+    fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
+        G::_frame_regulator_opt(self)
+    }
+
+    fn _get_next_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool {
+        G::_get_next_cell_unchecked_mut(self, point)
+    }
+
+    fn _regulate_frame(&mut self) {
+        G::_regulate_frame(self)
+    }
+
+    fn _g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        G::_g_fmt(self, tc, fc, f)
+    }
+}
+
+impl<G: Grid> Grid for Box<G> {
+    fn update(&mut self) {
+        G::update(self);
+    }
+
+    fn get_cell_unchecked(&self, point: GridPoint) -> bool {
+        G::get_cell_unchecked(self, point)
+    }
+
+    fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool {
+        G::get_cell_unchecked_mut(self, point)
+    }
+}
