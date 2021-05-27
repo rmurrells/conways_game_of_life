@@ -16,7 +16,7 @@ fn init_benchmark<G: Grid>(name: &str, mut grid: G, group: &mut BenchmarkGroup<'
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("bgroup");
+    let mut group = c.benchmark_group("random");
     group.measurement_time(Duration::from_secs(10));
 
     const WIDTH: usize = 600;
