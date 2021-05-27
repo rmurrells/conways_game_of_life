@@ -114,11 +114,11 @@ where
         for event in self.event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
-                | Event::KeyDown {
+                | Event::KeyUp {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => return false,
-                Event::KeyDown {
+                Event::KeyUp {
                     keycode: Some(key), ..
                 } => match key {
                     Keycode::R => self.grid = self.init_grid.clone(),
