@@ -35,16 +35,16 @@ pub(crate) mod private {
     use super::*;
     pub trait GridPrivate: Clone {
         fn _size(&self) -> GridPoint;
-        fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator>;
-        fn get_next_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
+        fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator>;
+        fn _get_next_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
 
-        fn regulate_frame(&mut self) {
-            if let Some(frame_regulator) = &mut self.frame_regulator_opt() {
+        fn _regulate_frame(&mut self) {
+            if let Some(frame_regulator) = &mut self._frame_regulator_opt() {
                 frame_regulator.regulate();
             }
         }
 
-        fn g_fmt(&self, _tc: char, _fc: char, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn _g_fmt(&self, _tc: char, _fc: char, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
             Ok(())
         }
     }
@@ -62,7 +62,7 @@ pub trait Grid: GridPrivate {
     }
 
     fn set_fps(&mut self, fps: u64) {
-        *self.frame_regulator_opt() = if fps != 0 {
+        *self._frame_regulator_opt() = if fps != 0 {
             Some(FrameRegulator::fps(fps).unwrap())
         } else {
             None
@@ -274,19 +274,19 @@ fn set_next_state<G: Grid>(grid: &mut G) {
             if grid.get_cell_unchecked((x + 1, y + 1)) {
                 counter += 1;
             }
-            *grid.get_next_cell_unchecked_mut((x, y)) =
+            *grid._get_next_cell_unchecked_mut((x, y)) =
                 counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)));
         }
     }
 
     for x in 0..size.0 {
-        *grid.get_next_cell_unchecked_mut((x, 0)) = next_cell_state_individual(grid, (x, 0));
-        *grid.get_next_cell_unchecked_mut((x, y_max)) =
+        *grid._get_next_cell_unchecked_mut((x, 0)) = next_cell_state_individual(grid, (x, 0));
+        *grid._get_next_cell_unchecked_mut((x, y_max)) =
             next_cell_state_individual(grid, (x, y_max));
     }
     for y in 1..y_max {
-        *grid.get_next_cell_unchecked_mut((0, y)) = next_cell_state_individual(grid, (0, y));
-        *grid.get_next_cell_unchecked_mut((x_max, y)) =
+        *grid._get_next_cell_unchecked_mut((0, y)) = next_cell_state_individual(grid, (0, y));
+        *grid._get_next_cell_unchecked_mut((x_max, y)) =
             next_cell_state_individual(grid, (x_max, y));
     }
 }
@@ -326,16 +326,16 @@ impl GridPrivate for Grid1dVec {
         self.size
     }
 
-    fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
+    fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
         &mut self.frame_regulator_opt
     }
 
-    fn get_next_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool {
+    fn _get_next_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool {
         let index = self.get_index(point);
         &mut self.next_vec[index]
     }
 
-    fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn _g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, b) in self.as_slice().iter().enumerate() {
             write!(f, "{}", if *b { tc } else { fc })?;
             if (i + 1) % self.size.0 as usize == 0 {
@@ -350,7 +350,7 @@ impl Grid for Grid1dVec {
     fn update(&mut self) {
         set_next_state(self);
         mem::swap(&mut self.current_vec, &mut self.next_vec);
-        self.regulate_frame();
+        self._regulate_frame();
     }
 
     fn get_cell_unchecked(&self, point: GridPoint) -> bool {
@@ -365,13 +365,13 @@ impl Grid for Grid1dVec {
 
 impl fmt::Display for Grid1dVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.g_fmt('\u{2588}', ' ', f)
+        self._g_fmt('\u{2588}', ' ', f)
     }
 }
 
 impl fmt::Debug for Grid1dVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.g_fmt('X', '-', f)
+        self._g_fmt('X', '-', f)
     }
 }
 
@@ -402,15 +402,15 @@ impl GridPrivate for Grid2dVec {
         self.size
     }
 
-    fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
+    fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
         &mut self.frame_regulator_opt
     }
 
-    fn get_next_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
+    fn _get_next_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
         &mut self.next_vec[y as usize][x as usize]
     }
 
-    fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn _g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for row in &self.current_vec {
             for b in row {
                 write!(f, "{}", if *b { tc } else { fc })?;
@@ -425,7 +425,7 @@ impl Grid for Grid2dVec {
     fn update(&mut self) {
         set_next_state(self);
         mem::swap(&mut self.current_vec, &mut self.next_vec);
-        self.regulate_frame();
+        self._regulate_frame();
     }
 
     fn get_cell_unchecked(&self, (x, y): GridPoint) -> bool {
@@ -439,13 +439,13 @@ impl Grid for Grid2dVec {
 
 impl fmt::Display for Grid2dVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.g_fmt('\u{2588}', ' ', f)
+        self._g_fmt('\u{2588}', ' ', f)
     }
 }
 
 impl fmt::Debug for Grid2dVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.g_fmt('X', '-', f)
+        self._g_fmt('X', '-', f)
     }
 }
 
@@ -473,15 +473,15 @@ impl<const WIDTH: usize, const HEIGHT: usize> private::GridPrivate for Grid2dArr
         (WIDTH as GridUnit, HEIGHT as GridUnit)
     }
 
-    fn frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
+    fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
         &mut self.frame_regulator_opt
     }
 
-    fn get_next_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
+    fn _get_next_cell_unchecked_mut(&mut self, (x, y): GridPoint) -> &mut bool {
         &mut self.next_arr[y as usize][x as usize]
     }
 
-    fn g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn _g_fmt(&self, tc: char, fc: char, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for row in &self.current_arr {
             for b in row {
                 write!(f, "{}", if *b { tc } else { fc })?;
@@ -496,7 +496,7 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> 
     fn update(&mut self) {
         set_next_state(self);
         self.current_arr = self.next_arr;
-        self.regulate_frame();
+        self._regulate_frame();
     }
 
     fn get_cell_unchecked(&self, (x, y): GridPoint) -> bool {
@@ -510,12 +510,12 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> 
 
 impl<const WIDTH: usize, const HEIGHT: usize> fmt::Display for Grid2dArr<WIDTH, HEIGHT> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.g_fmt('\u{2588}', ' ', f)
+        self._g_fmt('\u{2588}', ' ', f)
     }
 }
 
 impl<const WIDTH: usize, const HEIGHT: usize> fmt::Debug for Grid2dArr<WIDTH, HEIGHT> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.g_fmt('X', '-', f)
+        self._g_fmt('X', '-', f)
     }
 }
