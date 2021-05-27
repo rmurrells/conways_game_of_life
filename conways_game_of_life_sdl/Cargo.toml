@@ -9,3 +9,10 @@ edition = "2018"
 [dependencies]
 sdl2 = "*"
 conways_game_of_life_impl = {path = "../conways_game_of_life_impl"}
+
+[dev-dependencies]
+criterion = "*"
+
+[[bench]]
+name = "benchmark"
+harness = false

@@ -1,6 +1,6 @@
 mod renderer;
 
-pub use conways_game_of_life_impl::{config, BResult, Grid, Grid1dVec, Grid2dArr, Grid2dVec};
+pub use conways_game_of_life_impl::{config, BResult, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridUnit};
 use renderer::Renderer;
 pub use renderer::{RendererBuildStage, RendererBuilder};
 use sdl2::{
