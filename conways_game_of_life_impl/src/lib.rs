@@ -1,8 +1,8 @@
 pub mod config;
 mod frame_regulator;
 
-pub use frame_regulator::ZeroFps;
 use frame_regulator::FrameRegulator;
+pub use frame_regulator::ZeroFps;
 use std::{error::Error, fmt, mem};
 
 pub type GridUnit = u16;

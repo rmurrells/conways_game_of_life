@@ -1,7 +1,6 @@
 use std::{
     error::Error,
-    fmt,
-    thread,
+    fmt, thread,
     time::{Duration, Instant},
 };
 
@@ -29,11 +28,11 @@ impl FrameRegulator {
     }
 
     pub fn fps(fps: u64) -> Result<Self, ZeroFps> {
-	if fps == 0 {
-	    Err(ZeroFps)
-	} else {
+        if fps == 0 {
+            Err(ZeroFps)
+        } else {
             Ok(Self::new(Duration::from_nanos(1_000_000_000 / fps)))
-	}
+        }
     }
 
     pub fn regulate(&mut self) {
