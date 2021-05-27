@@ -71,10 +71,10 @@ macro_rules! process_stages {
 	        RendererBuildStage::Canvas(mut canvas) => {
 		    apply_command!($self, canvas, canvas);
                     return Ok(Renderer {
-                        _video: $self.video,
-                           canvas,
                         background_color: $self.background_color,
                         cell_color: $self.cell_color,
+                        _video: $self.video,
+                        canvas,
                     });
                 }
 	}
@@ -93,9 +93,9 @@ macro_rules! apply_command {
 impl RendererBuilder {
     pub fn new(sdl: &Sdl) -> IResult<Self> {
         Ok(Self {
-            video: sdl.video()?,
             background_color: Color::RGB(0, 0, 0),
             cell_color: Color::RGB(200, 200, 200),
+            video: sdl.video()?,
             build_stage: RendererBuildStage::VideoSubsystem(VideoSubsystemStage {
                 window_name: "conways_game_of_life".into(),
                 window_size: (800, 600),
@@ -133,10 +133,10 @@ impl RendererBuilder {
 }
 
 pub struct Renderer {
-    _video: VideoSubsystem,
-    canvas: WindowCanvas,
     pub background_color: Color,
     pub cell_color: Color,
+    _video: VideoSubsystem,
+    canvas: WindowCanvas,
 }
 
 impl Renderer {
