@@ -28,4 +28,8 @@ impl FrameRegulator {
         }
         self.last = Instant::now();
     }
+
+    pub fn elapsed(&self) -> Duration {
+        self.last.elapsed()
+    }
 }
