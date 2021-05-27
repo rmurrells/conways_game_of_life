@@ -103,8 +103,8 @@ where
 
     pub fn tick(&mut self) -> IResult<bool> {
         let run = self.poll();
+        self.renderer.render(&self.grid)?;
         if !self.pause {
-            self.renderer.render(&self.grid)?;
             self.grid.update();
         }
         Ok(run)
