@@ -1,4 +1,6 @@
 *~
 *.svg
+*.dll
+*.lib
 
 target/
