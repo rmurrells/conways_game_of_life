@@ -35,9 +35,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     const HEIGHT: usize = 600;
     let size = (WIDTH as GridUnit, HEIGHT as GridUnit);
     init_benchmark("1d_vec", Grid1dVec::empty(size), &mut group);
+    init_benchmark("1d_vec_box", Box::new(Grid1dVec::empty(size)), &mut group);
     init_benchmark("2d_vec", Grid2dVec::empty(size), &mut group);
+    init_benchmark("2d_vec_box", Box::new(Grid2dVec::empty(size)), &mut group);
     init_benchmark("2d_arr", Grid2dArr::<WIDTH, HEIGHT>::empty(), &mut group);
-
+    init_benchmark("2d_arr_box", Box::new(Grid2dArr::<WIDTH, HEIGHT>::empty()), &mut group);
+    
     group.finish();
 }
 
