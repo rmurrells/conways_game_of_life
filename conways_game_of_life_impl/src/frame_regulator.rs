@@ -1,4 +1,6 @@
 use std::{
+    error::Error,
+    fmt,
     thread,
     time::{Duration, Instant},
 };
@@ -9,6 +11,15 @@ pub struct FrameRegulator {
     last: Instant,
 }
 
+#[derive(Debug)]
+pub struct ZeroFps;
+impl fmt::Display for ZeroFps {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+impl Error for ZeroFps {}
+
 impl FrameRegulator {
     pub fn new(frame_duration: Duration) -> Self {
         Self {
@@ -17,8 +28,12 @@ impl FrameRegulator {
         }
     }
 
-    pub fn fps(fps: u64) -> Self {
-        Self::new(Duration::from_nanos(1_000_000_000 / fps))
+    pub fn fps(fps: u64) -> Result<Self, ZeroFps> {
+	if fps == 0 {
+	    Err(ZeroFps)
+	} else {
+            Ok(Self::new(Duration::from_nanos(1_000_000_000 / fps)))
+	}
     }
 
     pub fn regulate(&mut self) {

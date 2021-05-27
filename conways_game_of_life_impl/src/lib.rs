@@ -1,6 +1,7 @@
 pub mod config;
 mod frame_regulator;
 
+pub use frame_regulator::ZeroFps;
 use frame_regulator::FrameRegulator;
 use std::{error::Error, fmt, mem};
 
@@ -62,10 +63,10 @@ pub trait Grid: GridPrivate {
 
     fn set_fps(&mut self, fps: u64) {
         *self.frame_regulator_opt() = if fps != 0 {
-            Some(FrameRegulator::fps(fps))
+            Some(FrameRegulator::fps(fps).unwrap())
         } else {
             None
-        }
+        };
     }
 
     fn set_cell(&mut self, point: GridPoint, b: bool) -> BResult<()> {
@@ -492,14 +493,6 @@ impl<const WIDTH: usize, const HEIGHT: usize> private::GridPrivate for Grid2dArr
 }
 
 impl<const WIDTH: usize, const HEIGHT: usize> Grid for Grid2dArr<WIDTH, HEIGHT> {
-    fn set_fps(&mut self, fps: u64) {
-        self.frame_regulator_opt = if fps != 0 {
-            Some(FrameRegulator::fps(fps))
-        } else {
-            None
-        }
-    }
-
     fn update(&mut self) {
         set_next_state(self);
         self.current_arr = self.next_arr;
