@@ -1,4 +1,8 @@
-use conways_game_of_life_sdl::{config, Grid2dVec, SDLInterfaceBuilder};
+use conways_game_of_life_sdl::{
+    config,
+    renderer::{DrawOption, Rgb},
+    Grid2dVec, SDLInterfaceBuilder,
+};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -13,6 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             vss.window_size = (size.0 as u32, size.1 as u32);
             vss
         });
+    interface_builder.renderer_builder.draw_opt = DrawOption::DynamicModulate(Rgb::Red);
 
     let mut interface = interface_builder.build(grid)?;
     interface.run()?;

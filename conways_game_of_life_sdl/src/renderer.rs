@@ -10,12 +10,105 @@ use sdl2::{
 pub struct RendererBuilder {
     pub video: VideoSubsystem,
     pub background_color: Color,
-    pub cell_color: Color,
+    pub draw_opt: DrawOption,
     build_stage: RendererBuildStage,
     stage_commands: StageCommands,
 }
 
-pub enum RendererBuildStage {
+#[derive(Clone, Copy)]
+pub enum DrawOption {
+    Static(Color),
+    DynamicModulate(Rgb),
+}
+
+#[derive(Clone, Copy)]
+pub enum Rgb {
+    Red,
+    Green,
+    Blue,
+}
+
+impl Into<Color> for Rgb {
+    fn into(self) -> Color {
+	match self {
+            Self::Red => Color::RGB(255, 0, 0),
+            Self::Green => Color::RGB(0, 255, 0),
+            Self::Blue => Color::RGB(0, 0, 255),
+	}
+    }
+}
+
+struct DynamicModulate {
+    color_modulator: ColorModulator,
+    cell_states: Vec<Vec<(bool, Color)>>,
+}
+
+impl DynamicModulate {
+    fn init_cell_states<G: Grid>(&mut self, grid: &G) {
+        let size = grid.size();
+        self.cell_states =
+            vec![vec![(false, self.color_modulator.color()); size.0 as usize]; size.1 as usize];
+        grid.inspect(|(x, y), grid| {
+            self.cell_states[y as usize][x as usize].0 = grid.get_cell_unchecked((x, y));
+        });
+    }
+}
+
+struct ColorModulator {
+    color_state: Color,
+    rgb: Rgb,
+}
+
+impl ColorModulator {
+    fn new(rgb: Rgb) -> Self {
+        Self {
+            color_state: rgb.into(),
+	    rgb,
+        }
+    }
+
+    fn color(&self) -> Color {
+        self.color_state
+    }
+
+    fn reset(&mut self) {
+	self.color_state = self.rgb.into();
+    }
+    
+    fn modulate(&mut self) {
+        if self.color_state.r > 0 && self.color_state.b == 0 {
+            self.color_state.r -= 1;
+            self.color_state.g += 1;
+        } else if self.color_state.g > 0 {
+            self.color_state.g -= 1;
+            self.color_state.b += 1;
+        } else if self.color_state.b > 0 {
+            self.color_state.b -= 1;
+            self.color_state.r += 1;
+        }
+    }
+}
+
+enum DrawOptionPrivate {
+    Static(Color),
+    DynamicModulate(DynamicModulate),
+}
+
+impl Into<DrawOptionPrivate> for DrawOption {
+    fn into(self) -> DrawOptionPrivate {
+        match self {
+            DrawOption::Static(color) => DrawOptionPrivate::Static(color),
+            DrawOption::DynamicModulate(rgb) => {
+                DrawOptionPrivate::DynamicModulate(DynamicModulate {
+                    color_modulator: ColorModulator::new(rgb),
+                    cell_states: Vec::new(),
+                })
+            }
+        }
+    }
+}
+
+enum RendererBuildStage {
     VideoSubsystem(VideoSubsystemStage),
     WindowBuilder(WindowBuilder),
     Window(Window),
@@ -71,8 +164,8 @@ macro_rules! process_stages {
 	        RendererBuildStage::Canvas(mut canvas) => {
 		    apply_command!($self, canvas, canvas);
                     return Ok(Renderer {
-                        background_color: $self.background_color,
-                        cell_color: $self.cell_color,
+			draw_opt: $self.draw_opt.into(),
+			background_color: $self.background_color,
                         _video: $self.video,
                         canvas,
                     });
@@ -93,8 +186,8 @@ macro_rules! apply_command {
 impl RendererBuilder {
     pub fn new(sdl: &Sdl) -> IResult<Self> {
         Ok(Self {
+            draw_opt: DrawOption::Static(Color::RGB(200, 200, 200)),
             background_color: Color::RGB(0, 0, 0),
-            cell_color: Color::RGB(200, 200, 200),
             video: sdl.video()?,
             build_stage: RendererBuildStage::VideoSubsystem(VideoSubsystemStage {
                 window_name: "conways_game_of_life".into(),
@@ -134,16 +227,24 @@ impl RendererBuilder {
 
 pub struct Renderer {
     pub background_color: Color,
-    pub cell_color: Color,
     _video: VideoSubsystem,
     canvas: WindowCanvas,
+    draw_opt: DrawOptionPrivate,
 }
 
 impl Renderer {
     pub fn render<G: Grid>(&mut self, grid: &G) -> IResult<()> {
         self.canvas.set_draw_color(self.background_color);
         self.canvas.clear();
-        self.canvas.set_draw_color(self.cell_color);
+        match self.draw_opt {
+            DrawOptionPrivate::Static(cell_color) => self.canvas.set_draw_color(cell_color),
+            DrawOptionPrivate::DynamicModulate(ref mut dynamic_latest) => {
+                dynamic_latest.color_modulator.modulate();
+                if dynamic_latest.cell_states.is_empty() {
+                    dynamic_latest.init_cell_states(grid);
+                }
+            }
+        }
 
         let window_size = self.canvas.window().size();
         let grid_size = grid.size();
@@ -151,7 +252,23 @@ impl Renderer {
         let cell_h = window_size.1 / grid_size.1 as u32;
 
         grid.try_inspect::<String, _>(|(x, y), grid| {
-            if grid.get_cell_unchecked((x, y)) {
+            let cell = grid.get_cell_unchecked((x, y));
+            match &mut self.draw_opt {
+                DrawOptionPrivate::DynamicModulate(dynamic_latest) => {
+                    let cell_state = &mut dynamic_latest.cell_states[y as usize][x as usize];
+                    if cell {
+                        if !cell_state.0 {
+                            cell_state.1 = dynamic_latest.color_modulator.color();
+                            cell_state.0 = true;
+                        }
+                    } else {
+                        cell_state.0 = false;
+                    }
+                    self.canvas.set_draw_color(cell_state.1);
+                }
+                _ => (),
+            }
+            if cell {
                 self.canvas.fill_rect(Rect::new(
                     (x as u32 * cell_w) as i32,
                     (y as u32 * cell_h) as i32,
@@ -164,5 +281,12 @@ impl Renderer {
 
         self.canvas.present();
         Ok(())
+    }
+
+    pub fn reset(&mut self) {
+        match &mut self.draw_opt {
+            DrawOptionPrivate::DynamicModulate(dynamic_latest) => dynamic_latest.color_modulator.reset(),
+	    _ => (),
+	}
     }
 }

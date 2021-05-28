@@ -1,10 +1,9 @@
-mod renderer;
+pub mod renderer;
 
 pub use conways_game_of_life_impl::{
     config, BResult, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridUnit,
 };
-use renderer::Renderer;
-pub use renderer::{RendererBuildStage, RendererBuilder};
+use renderer::{Renderer, RendererBuilder};
 use sdl2::{
     event::Event, keyboard::Keycode, video::WindowBuildError, EventPump, IntegerOrSdlError, Sdl,
 };
@@ -121,7 +120,10 @@ where
                 Event::KeyUp {
                     keycode: Some(key), ..
                 } => match key {
-                    Keycode::R => self.grid = self.init_grid.clone(),
+                    Keycode::R => {
+			self.grid = self.init_grid.clone();
+			self.renderer.reset();
+		    }
                     Keycode::Space => self.pause = !self.pause,
                     _ => (),
                 },
