@@ -33,7 +33,7 @@ pub enum SetLineOpt {
 
 pub(crate) mod private {
     use super::*;
-    pub trait GridPrivate: Clone {
+    pub trait GridPrivate {
         fn _size(&self) -> GridPoint;
         fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator>;
         fn _get_next_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;

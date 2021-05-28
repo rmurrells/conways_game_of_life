@@ -55,7 +55,7 @@ where
 
 impl<G> SDLInterfaceBuilder<G>
 where
-    G: Grid,
+    G: Clone + Grid,
 {
     pub fn new() -> IResult<Self> {
         let sdl = sdl2::init()?;
@@ -100,7 +100,7 @@ enum SDLInterfaceState {
 
 impl<'a, G> SDLInterface<G>
 where
-    G: Grid,
+    G: Clone + Grid,
 {
     pub fn run(&mut self) -> IResult<()> {
         while self.tick()? {}

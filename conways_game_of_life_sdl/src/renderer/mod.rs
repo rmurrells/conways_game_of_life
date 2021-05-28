@@ -46,6 +46,7 @@ enum RendererBuildStage {
     Canvas(WindowCanvas),
 }
 
+#[derive(Clone)]
 pub struct VideoSubsystemStage {
     pub window_name: String,
     pub window_size: (u32, u32),
