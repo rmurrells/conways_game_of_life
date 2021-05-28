@@ -1,4 +1,8 @@
+mod new_cell_color;
+
 use crate::{Grid, IResult};
+use new_cell_color::{CyclicalModulator, NewCellColor, NewCellColorCyclical, NewCellColorHeatMap};
+pub use new_cell_color::{CyclicalModulatorOpt, Rgb, Rygcbm};
 use sdl2::{
     pixels::Color,
     rect::Rect,
@@ -7,102 +11,28 @@ use sdl2::{
     Sdl, VideoSubsystem,
 };
 
-pub struct RendererBuilder {
-    pub video: VideoSubsystem,
-    pub background_color: Color,
-    pub draw_opt: DrawOption,
-    build_stage: RendererBuildStage,
-    stage_commands: StageCommands,
-}
-
 #[derive(Clone, Copy)]
 pub enum DrawOption {
     Static(Color),
-    DynamicModulate(Rgb),
-}
-
-#[derive(Clone, Copy)]
-pub enum Rgb {
-    Red,
-    Green,
-    Blue,
-}
-
-impl Into<Color> for Rgb {
-    fn into(self) -> Color {
-	match self {
-            Self::Red => Color::RGB(255, 0, 0),
-            Self::Green => Color::RGB(0, 255, 0),
-            Self::Blue => Color::RGB(0, 0, 255),
-	}
-    }
-}
-
-struct DynamicModulate {
-    color_modulator: ColorModulator,
-    cell_states: Vec<Vec<(bool, Color)>>,
-}
-
-impl DynamicModulate {
-    fn init_cell_states<G: Grid>(&mut self, grid: &G) {
-        let size = grid.size();
-        self.cell_states =
-            vec![vec![(false, self.color_modulator.color()); size.0 as usize]; size.1 as usize];
-        grid.inspect(|(x, y), grid| {
-            self.cell_states[y as usize][x as usize].0 = grid.get_cell_unchecked((x, y));
-        });
-    }
-}
-
-struct ColorModulator {
-    color_state: Color,
-    rgb: Rgb,
-}
-
-impl ColorModulator {
-    fn new(rgb: Rgb) -> Self {
-        Self {
-            color_state: rgb.into(),
-	    rgb,
-        }
-    }
-
-    fn color(&self) -> Color {
-        self.color_state
-    }
-
-    fn reset(&mut self) {
-	self.color_state = self.rgb.into();
-    }
-    
-    fn modulate(&mut self) {
-        if self.color_state.r > 0 && self.color_state.b == 0 {
-            self.color_state.r -= 1;
-            self.color_state.g += 1;
-        } else if self.color_state.g > 0 {
-            self.color_state.g -= 1;
-            self.color_state.b += 1;
-        } else if self.color_state.b > 0 {
-            self.color_state.b -= 1;
-            self.color_state.r += 1;
-        }
-    }
+    DynamicCyclical(CyclicalModulatorOpt),
+    DynamicHeatMap(Rgb, Rgb),
 }
 
 enum DrawOptionPrivate {
     Static(Color),
-    DynamicModulate(DynamicModulate),
+    DynamicCyclical(NewCellColorCyclical),
+    DynamicHeatMap(NewCellColorHeatMap),
 }
 
-impl Into<DrawOptionPrivate> for DrawOption {
-    fn into(self) -> DrawOptionPrivate {
-        match self {
+impl From<DrawOption> for DrawOptionPrivate {
+    fn from(draw_option: DrawOption) -> DrawOptionPrivate {
+        match draw_option {
             DrawOption::Static(color) => DrawOptionPrivate::Static(color),
-            DrawOption::DynamicModulate(rgb) => {
-                DrawOptionPrivate::DynamicModulate(DynamicModulate {
-                    color_modulator: ColorModulator::new(rgb),
-                    cell_states: Vec::new(),
-                })
+            DrawOption::DynamicCyclical(rgb) => DrawOptionPrivate::DynamicCyclical(
+                NewCellColorCyclical::new(CyclicalModulator::new(rgb)),
+            ),
+            DrawOption::DynamicHeatMap(hot, cold) => {
+                DrawOptionPrivate::DynamicHeatMap(NewCellColorHeatMap::new(hot, cold))
             }
         }
     }
@@ -141,6 +71,14 @@ impl StageCommands {
             canvas: None,
         }
     }
+}
+
+pub struct RendererBuilder {
+    pub video: VideoSubsystem,
+    pub background_color: Color,
+    pub draw_opt: DrawOption,
+    build_stage: RendererBuildStage,
+    stage_commands: StageCommands,
 }
 
 macro_rules! set_command {
@@ -238,12 +176,8 @@ impl Renderer {
         self.canvas.clear();
         match self.draw_opt {
             DrawOptionPrivate::Static(cell_color) => self.canvas.set_draw_color(cell_color),
-            DrawOptionPrivate::DynamicModulate(ref mut dynamic_latest) => {
-                dynamic_latest.color_modulator.modulate();
-                if dynamic_latest.cell_states.is_empty() {
-                    dynamic_latest.init_cell_states(grid);
-                }
-            }
+            DrawOptionPrivate::DynamicCyclical(ref mut ncc) => ncc.update(grid),
+            DrawOptionPrivate::DynamicHeatMap(ref mut ncc) => ncc.update(grid),
         }
 
         let window_size = self.canvas.window().size();
@@ -254,17 +188,11 @@ impl Renderer {
         grid.try_inspect::<String, _>(|(x, y), grid| {
             let cell = grid.get_cell_unchecked((x, y));
             match &mut self.draw_opt {
-                DrawOptionPrivate::DynamicModulate(dynamic_latest) => {
-                    let cell_state = &mut dynamic_latest.cell_states[y as usize][x as usize];
-                    if cell {
-                        if !cell_state.0 {
-                            cell_state.1 = dynamic_latest.color_modulator.color();
-                            cell_state.0 = true;
-                        }
-                    } else {
-                        cell_state.0 = false;
-                    }
-                    self.canvas.set_draw_color(cell_state.1);
+                DrawOptionPrivate::DynamicCyclical(ncc) => {
+                    self.canvas.set_draw_color(ncc.get_cell_color((x, y), cell));
+                }
+                DrawOptionPrivate::DynamicHeatMap(ncc) => {
+                    self.canvas.set_draw_color(ncc.get_cell_color((x, y), cell));
                 }
                 _ => (),
             }
@@ -285,8 +213,9 @@ impl Renderer {
 
     pub fn reset(&mut self) {
         match &mut self.draw_opt {
-            DrawOptionPrivate::DynamicModulate(dynamic_latest) => dynamic_latest.color_modulator.reset(),
-	    _ => (),
-	}
+            DrawOptionPrivate::DynamicCyclical(ncc) => ncc.reset(),
+            DrawOptionPrivate::DynamicHeatMap(ncc) => ncc.reset(),
+            _ => (),
+        }
     }
 }

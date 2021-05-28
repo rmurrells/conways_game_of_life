@@ -1,7 +1,7 @@
 pub mod renderer;
 
 pub use conways_game_of_life_impl::{
-    config, BResult, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridUnit,
+    config, BResult, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridPoint, GridUnit,
 };
 use renderer::{Renderer, RendererBuilder};
 use sdl2::{
@@ -91,6 +91,13 @@ where
     pause: bool,
 }
 
+enum SDLInterfaceState {
+    Pause,
+    Run,
+    Reset,
+    Quit,
+}
+
 impl<'a, G> SDLInterface<G>
 where
     G: Grid,
@@ -101,35 +108,43 @@ where
     }
 
     pub fn tick(&mut self) -> IResult<bool> {
-        let run = self.poll();
-        self.renderer.render(&self.grid)?;
+        let mut run = true;
+        for event in self.event_pump.poll_iter().map(Self::map_event) {
+            match event {
+                SDLInterfaceState::Pause => self.pause = !self.pause,
+                SDLInterfaceState::Run => (),
+                SDLInterfaceState::Reset => {
+                    self.grid = self.init_grid.clone();
+                    self.renderer.reset();
+                    if self.pause {
+                        self.renderer.render(&self.grid)?;
+                    }
+                }
+                SDLInterfaceState::Quit => run = false,
+            }
+        }
         if !self.pause {
+            self.renderer.render(&self.grid)?;
             self.grid.update();
         }
         Ok(run)
     }
 
-    fn poll(&mut self) -> bool {
-        for event in self.event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyUp {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => return false,
-                Event::KeyUp {
-                    keycode: Some(key), ..
-                } => match key {
-                    Keycode::R => {
-			self.grid = self.init_grid.clone();
-			self.renderer.reset();
-		    }
-                    Keycode::Space => self.pause = !self.pause,
-                    _ => (),
-                },
-                _ => (),
-            }
+    fn map_event(event: Event) -> SDLInterfaceState {
+        match event {
+            Event::Quit { .. }
+            | Event::KeyUp {
+                keycode: Some(Keycode::Escape),
+                ..
+            } => SDLInterfaceState::Quit,
+            Event::KeyUp {
+                keycode: Some(key), ..
+            } => match key {
+                Keycode::R => SDLInterfaceState::Reset,
+                Keycode::Space => SDLInterfaceState::Pause,
+                _ => SDLInterfaceState::Run,
+            },
+            _ => SDLInterfaceState::Run,
         }
-        true
     }
 }
