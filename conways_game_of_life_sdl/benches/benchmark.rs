@@ -1,16 +1,12 @@
 use conways_game_of_life_sdl::{
-    config, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridUnit, SDLInterfaceBuilder,
+    config, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridPoint, GridUnit,     renderer::{CyclicalModulatorOpt, DrawOption, Rygcbm}, SDLInterfaceBuilder,
 };
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
 use std::time::Duration;
 
-fn init_benchmark<G: Grid>(name: &str, mut grid: G, group: &mut BenchmarkGroup<'_, WallTime>) {
-    grid.set_fps(0);
-    config::random(&mut grid, 0.25).unwrap();
-
-    let size = grid.size();
+fn get_builder<G: Clone + Grid>(size: GridPoint) -> SDLInterfaceBuilder<G> {
     let mut interface_builder = SDLInterfaceBuilder::new().unwrap();
     interface_builder
         .renderer_builder
@@ -18,13 +14,29 @@ fn init_benchmark<G: Grid>(name: &str, mut grid: G, group: &mut BenchmarkGroup<'
             vss.window_size = (size.0 as u32, size.1 as u32);
             vss
         });
+    interface_builder
+}
 
+fn add_interface<G: Clone + Grid>(name: &str, grid: G, interface_builder: SDLInterfaceBuilder<G>, group: &mut BenchmarkGroup<'_, WallTime>) {
     let mut interface = interface_builder.build(grid).unwrap();
     group.bench_function(name, |b| {
         b.iter(|| {
             interface.tick().unwrap();
         })
-    });
+    });    
+}
+
+fn init_benchmark<G: Clone + Grid>(name: &str, mut grid: G, group: &mut BenchmarkGroup<'_, WallTime>) {
+    grid.set_fps(0);
+    config::random(&mut grid, 0.25).unwrap();
+    let size = grid.size();
+
+    add_interface(name, grid.clone(), get_builder(size), group);
+
+    let mut interface_builder = get_builder(size);
+    interface_builder.renderer_builder.draw_opt =
+        DrawOption::DynamicCyclical(CyclicalModulatorOpt::Rygcbm(Rygcbm::Red));
+    add_interface(&format!("{}_cyclical_rygcbm", name), grid, interface_builder, group);
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
