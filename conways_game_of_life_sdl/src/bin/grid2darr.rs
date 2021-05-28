@@ -8,7 +8,7 @@ use std::error::Error;
 fn main() -> Result<(), Box<dyn Error>> {
     const WIDTH: usize = 600;
     const HEIGHT: usize = 600;
-    let mut grid = Grid2dArr<WIDTH, HEIGHR>::empty();
+    let mut grid = Grid2dArr::<WIDTH, HEIGHT>::empty();
     config::random(&mut grid, 0.25)?;
 
     let mut interface_builder = SDLInterfaceBuilder::new()?;
