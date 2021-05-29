@@ -15,7 +15,7 @@ use sdl2::{
 pub enum DrawOption {
     Static(Color),
     DynamicCyclical(CyclicalModulatorOpt),
-    DynamicHeatMap(Rgb, Rgb),
+    DynamicHeatMap { hot: Rgb, cold: Rgb },
 }
 
 enum DrawOptionPrivate {
@@ -31,10 +31,35 @@ impl From<DrawOption> for DrawOptionPrivate {
             DrawOption::DynamicCyclical(rgb) => DrawOptionPrivate::DynamicCyclical(
                 NewCellColorCyclical::new(CyclicalModulator::new(rgb)),
             ),
-            DrawOption::DynamicHeatMap(hot, cold) => {
+            DrawOption::DynamicHeatMap { hot, cold } => {
                 DrawOptionPrivate::DynamicHeatMap(NewCellColorHeatMap::new(hot, cold))
             }
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Camera {
+    pub x: i32,
+    pub y: i32,
+    zoom: f64,
+    zoom_range: (f64, f64),
+}
+
+impl Camera {
+    fn new(x: i32, y: i32, zoom: f64, mut zoom_range: (f64, f64)) -> Self {
+        zoom_range.0 = zoom_range.0.max(0.);
+        Self {
+            x,
+            y,
+            zoom,
+            zoom_range,
+        }
+    }
+
+    pub fn zoom(&mut self, zoom: f64) {
+        self.zoom += zoom;
+        self.zoom = self.zoom.clamp(self.zoom_range.0, self.zoom_range.1);
     }
 }
 
@@ -78,6 +103,7 @@ pub struct RendererBuilder {
     pub video: VideoSubsystem,
     pub background_color: Color,
     pub draw_opt: DrawOption,
+    pub camera_opt: Option<Camera>,
     build_stage: RendererBuildStage,
     stage_commands: StageCommands,
 }
@@ -102,7 +128,10 @@ macro_rules! process_stages {
 	    )+
 	        RendererBuildStage::Canvas(mut canvas) => {
 		    apply_command!($self, canvas, canvas);
+		    let init_camera = $self.camera_opt.or(Some(Camera::new(0, 0, 1., (0.1, 10.)))).unwrap();
                     return Ok(Renderer {
+			camera: init_camera,
+			init_camera,
 			draw_opt: $self.draw_opt.into(),
 			background_color: $self.background_color,
                         _video: $self.video,
@@ -128,6 +157,7 @@ impl RendererBuilder {
             draw_opt: DrawOption::Static(Color::RGB(200, 200, 200)),
             background_color: Color::RGB(0, 0, 0),
             video: sdl.video()?,
+            camera_opt: None,
             build_stage: RendererBuildStage::VideoSubsystem(VideoSubsystemStage {
                 window_name: "conways_game_of_life".into(),
                 window_size: (800, 600),
@@ -165,7 +195,9 @@ impl RendererBuilder {
 }
 
 pub struct Renderer {
+    pub camera: Camera,
     pub background_color: Color,
+    init_camera: Camera,
     _video: VideoSubsystem,
     canvas: WindowCanvas,
     draw_opt: DrawOptionPrivate,
@@ -183,8 +215,13 @@ impl Renderer {
 
         let window_size = self.canvas.window().size();
         let grid_size = grid.size();
-        let cell_w = window_size.0 / grid_size.0 as u32;
-        let cell_h = window_size.1 / grid_size.1 as u32;
+        let cell_w =
+            (((window_size.0 / grid_size.0 as u32) as f64 * self.camera.zoom) as u32).max(1);
+        let cell_h =
+            (((window_size.1 / grid_size.1 as u32) as f64 * self.camera.zoom) as u32).max(1);
+
+        let h_w = window_size.0 / 2;
+        let h_h = window_size.1 / 2;
 
         grid.try_inspect::<String, _>(|(x, y), grid| {
             let cell = grid.get_cell_unchecked((x, y));
@@ -199,8 +236,8 @@ impl Renderer {
             }
             if cell {
                 self.canvas.fill_rect(Rect::new(
-                    (x as u32 * cell_w) as i32,
-                    (y as u32 * cell_h) as i32,
+                    (x as u32 * cell_w) as i32 - self.camera.x + h_w as i32,
+                    (y as u32 * cell_h) as i32 - self.camera.y + h_h as i32,
                     cell_w,
                     cell_h,
                 ))?;
@@ -213,6 +250,7 @@ impl Renderer {
     }
 
     pub fn reset(&mut self) {
+        self.camera = self.init_camera;
         match &mut self.draw_opt {
             DrawOptionPrivate::DynamicCyclical(ncc) => ncc.reset(),
             DrawOptionPrivate::DynamicHeatMap(ncc) => ncc.reset(),

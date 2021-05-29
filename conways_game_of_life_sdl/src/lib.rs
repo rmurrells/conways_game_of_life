@@ -1,12 +1,12 @@
+mod input_pump;
 pub mod renderer;
 
 pub use conways_game_of_life_impl::{
     config, BResult, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridPoint, GridUnit,
 };
+use input_pump::{Input, InputPump};
 use renderer::{Renderer, RendererBuilder};
-use sdl2::{
-    event::Event, keyboard::Keycode, video::WindowBuildError, EventPump, IntegerOrSdlError, Sdl,
-};
+use sdl2::{video::WindowBuildError, IntegerOrSdlError, Sdl};
 use std::{error::Error, fmt, marker::PhantomData};
 
 pub type IResult<T> = Result<T, InterfaceError>;
@@ -50,6 +50,7 @@ where
 {
     pub sdl: Sdl,
     pub renderer_builder: RendererBuilder,
+    input_pump: InputPump,
     phantom: PhantomData<G>,
 }
 
@@ -61,6 +62,7 @@ where
         let sdl = sdl2::init()?;
         let renderer_builder = RendererBuilder::new(&sdl)?;
         Ok(Self {
+            input_pump: InputPump::new(&sdl)?,
             sdl,
             renderer_builder,
             phantom: PhantomData,
@@ -70,7 +72,7 @@ where
     pub fn build(self, grid: G) -> IResult<SDLInterface<G>> {
         Ok(SDLInterface::<G> {
             renderer: self.renderer_builder.build()?,
-            event_pump: self.sdl.event_pump()?,
+            input_pump: self.input_pump,
             _sdl: self.sdl,
             init_grid: grid.clone(),
             grid,
@@ -85,17 +87,10 @@ where
 {
     _sdl: Sdl,
     renderer: Renderer,
-    event_pump: EventPump,
+    input_pump: InputPump,
     init_grid: G,
     grid: G,
     pause: bool,
-}
-
-enum SDLInterfaceState {
-    Pause,
-    Run,
-    Reset,
-    Quit,
 }
 
 impl<'a, G> SDLInterface<G>
@@ -109,18 +104,23 @@ where
 
     pub fn tick(&mut self) -> IResult<bool> {
         let mut run = true;
-        for event in self.event_pump.poll_iter().map(Self::map_event) {
-            match event {
-                SDLInterfaceState::Pause => self.pause = !self.pause,
-                SDLInterfaceState::Run => (),
-                SDLInterfaceState::Reset => {
+        for input in self.input_pump.poll_iter() {
+            match input {
+                Input::MoveCamera { x, y } => {
+                    self.renderer.camera.x += x;
+                    self.renderer.camera.y += y;
+                }
+                Input::ZoomCamera { zoom } => self.renderer.camera.zoom(zoom),
+                Input::Pause => self.pause = !self.pause,
+                Input::Run => (),
+                Input::Reset => {
                     self.grid = self.init_grid.clone();
                     self.renderer.reset();
                     if self.pause {
                         self.renderer.render(&self.grid)?;
                     }
                 }
-                SDLInterfaceState::Quit => run = false,
+                Input::Quit => run = false,
             }
         }
         if !self.pause {
@@ -128,23 +128,5 @@ where
             self.grid.update();
         }
         Ok(run)
-    }
-
-    fn map_event(event: Event) -> SDLInterfaceState {
-        match event {
-            Event::Quit { .. }
-            | Event::KeyUp {
-                keycode: Some(Keycode::Escape),
-                ..
-            } => SDLInterfaceState::Quit,
-            Event::KeyUp {
-                keycode: Some(key), ..
-            } => match key {
-                Keycode::R => SDLInterfaceState::Reset,
-                Keycode::Space => SDLInterfaceState::Pause,
-                _ => SDLInterfaceState::Run,
-            },
-            _ => SDLInterfaceState::Run,
-        }
     }
 }
