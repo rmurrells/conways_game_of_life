@@ -3,7 +3,11 @@ mod frame_regulator;
 
 use frame_regulator::FrameRegulator;
 pub use frame_regulator::ZeroFps;
-use std::{alloc::{self, Layout}, error::Error, fmt, mem};
+use std::{
+    alloc::{self, Layout},
+    error::Error,
+    fmt, mem,
+};
 
 pub type GridUnit = u16;
 pub type GridPoint = (GridUnit, GridUnit);
@@ -460,19 +464,17 @@ pub struct Grid2dArr<const WIDTH: usize, const HEIGHT: usize> {
 
 impl<const WIDTH: usize, const HEIGHT: usize> Grid2dArr<WIDTH, HEIGHT> {
     /*Only allow creation of boxed Grid2dArr to prevent possible stack overflow. Can only
-     allocate directly on the heap using unsafe code (Box::new still causes stack overflow).*/ 
+    allocate directly on the heap using unsafe code (Box::new still causes stack overflow).*/
     pub fn empty() -> Box<Self> {
-	let mut ret = unsafe {
-	    Box::from_raw(alloc::alloc(Layout::new::<Self>()) as *mut Self)
-	};
-	for y in 0..HEIGHT {
-	    for x in 0..WIDTH {
-		ret.current_arr[y][x] = false;
-		ret.next_arr[y][x] = false;
-	    }
-	}
-	ret.frame_regulator_opt = None;
-	ret
+        let mut ret = unsafe { Box::from_raw(alloc::alloc(Layout::new::<Self>()) as *mut Self) };
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                ret.current_arr[y][x] = false;
+                ret.next_arr[y][x] = false;
+            }
+        }
+        ret.frame_regulator_opt = None;
+        ret
     }
 }
 
