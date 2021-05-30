@@ -124,45 +124,24 @@ struct CellState {
     color: Color,
 }
 
-impl CellState {
-    fn get_cell_color<F: FnOnce() -> Color>(&mut self, cell: bool, color_fn: F) -> Color {
-        if cell {
-            if !self.state {
-                self.color = color_fn();
-                self.state = true;
-            }
-        } else {
-            self.state = false;
-        }
-        self.color
-    }
+struct CellStates {
+    cells: Vec<Vec<CellState>>,
 }
 
-pub struct NewCellColorCyclical {
-    pub cyclical_modulator: CyclicalModulator,
-    cell_states: Vec<Vec<CellState>>,
-}
-
-impl NewCellColorCyclical {
-    pub fn new(cyclical_modulator: CyclicalModulator, grid_size: GridPoint) -> Self {
-        Self {
-            cell_states: vec![
-                vec![CellState { state: false, color: cyclical_modulator.color() }; grid_size.0 as usize];
+impl CellStates {
+    fn new(color: Color, grid_size: GridPoint) -> Self {
+	Self {cells: vec![
+                vec![CellState { state: false, color  }; grid_size.0 as usize];
                 grid_size.1 as usize
-            ],
-            cyclical_modulator,
-        }
+        ]}
     }
 
-    pub fn get_cell_color(&mut self, (x, y): GridPoint, cell: bool) -> Color {
-	let cyclical_modulator = &self.cyclical_modulator;
-        self.cell_states[y as usize][x as usize].get_cell_color(cell, move || {cyclical_modulator.color()})
+    fn get_cell(&mut self, (x, y): GridPoint) -> &mut CellState {
+        &mut self.cells[y as usize][x as usize]
     }
 
-    pub fn reset(&mut self) {
-        self.cyclical_modulator.reset();
-        let color = self.cyclical_modulator.color();
-        for row in &mut self.cell_states {
+    fn reset(&mut self, color: Color) {
+        for row in &mut self.cells {
             for cell_state in row {
                 *cell_state = CellState{ state: false, color };
             }
@@ -170,8 +149,40 @@ impl NewCellColorCyclical {
     }
 }
 
+pub struct NewCellColorCyclical {
+    pub cyclical_modulator: CyclicalModulator,
+    cell_states: CellStates,
+}
+
+impl NewCellColorCyclical {
+    pub fn new(cyclical_modulator: CyclicalModulator, grid_size: GridPoint) -> Self {
+        Self {
+            cell_states: CellStates::new(cyclical_modulator.color(), grid_size),
+            cyclical_modulator,
+        }
+    }
+
+    pub fn get_cell_color(&mut self, point: GridPoint, cell: bool) -> Color {
+	let cell_state = self.cell_states.get_cell(point);
+        if cell {
+            if !cell_state.state {
+                cell_state.color = self.cyclical_modulator.color();
+                cell_state.state = true;
+            }
+        } else {
+            cell_state.state = false;
+        }
+        cell_state.color
+    }
+
+    pub fn reset(&mut self) {
+        self.cyclical_modulator.reset();
+        self.cell_states.reset(self.cyclical_modulator.color());
+    }
+}
+
 pub struct NewCellColorHeatMap {
-    cell_states: Vec<Vec<(bool, Color)>>,
+    cell_states: CellStates,
     hot: Rgb,
     cold: Rgb,
 }
@@ -179,69 +190,61 @@ pub struct NewCellColorHeatMap {
 impl NewCellColorHeatMap {
     pub fn new(hot: Rgb, cold: Rgb, grid_size: GridPoint) -> Self {
         Self {
-            cell_states: vec![
-                vec![(false, hot.into()); grid_size.0 as usize];
-                grid_size.1 as usize
-            ],
+            cell_states: CellStates::new(hot.into(), grid_size),
             hot,
             cold,
         }
     }
 
-    pub fn get_cell_color(&mut self, (x, y): GridPoint, cell: bool) -> Color {
-        let cell_state = &mut self.cell_states[y as usize][x as usize];
+    pub fn get_cell_color(&mut self, point: GridPoint, cell: bool) -> Color {
+        let cell_state = self.cell_states.get_cell(point);
         if cell {
-            if !cell_state.0 {
-                cell_state.1 = self.hot.into();
-                cell_state.0 = true;
+            if !cell_state.state {
+                cell_state.color = self.hot.into();
+                cell_state.state = true;
             } else {
                 match self.hot {
                     Rgb::Red => {
-                        if cell_state.1.r > 0 {
-                            cell_state.1.r -= 1;
+                        if cell_state.color.r > 0 {
+                            cell_state.color.r -= 1;
                         }
                     }
                     Rgb::Green => {
-                        if cell_state.1.g > 0 {
-                            cell_state.1.g -= 1;
+                        if cell_state.color.g > 0 {
+                            cell_state.color.g -= 1;
                         }
                     }
                     Rgb::Blue => {
-                        if cell_state.1.b > 0 {
-                            cell_state.1.b -= 1;
+                        if cell_state.color.b > 0 {
+                            cell_state.color.b -= 1;
                         }
                     }
                 }
                 match self.cold {
                     Rgb::Red => {
-                        if cell_state.1.r < u8::MAX {
-                            cell_state.1.r += 1;
+                        if cell_state.color.r < u8::MAX {
+                            cell_state.color.r += 1;
                         }
                     }
                     Rgb::Green => {
-                        if cell_state.1.g < u8::MAX {
-                            cell_state.1.g += 1;
+                        if cell_state.color.g < u8::MAX {
+                            cell_state.color.g += 1;
                         }
                     }
                     Rgb::Blue => {
-                        if cell_state.1.b < u8::MAX {
-                            cell_state.1.b += 1;
+                        if cell_state.color.b < u8::MAX {
+                            cell_state.color.b += 1;
                         }
                     }
                 }
             }
         } else {
-            cell_state.0 = false;
+            cell_state.state = false;
         }
-        cell_state.1
+        cell_state.color
     }
 
     pub fn reset(&mut self) {
-        let hot = self.hot.into();
-        for row in &mut self.cell_states {
-            for cell_state in row {
-                *cell_state = (false, hot);
-            }
-        }
+	self.cell_states.reset(self.hot.into());
     }
 }
