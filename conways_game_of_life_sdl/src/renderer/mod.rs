@@ -234,7 +234,7 @@ impl Renderer {
 
         let zoom_f64 = self.camera.zoom as f64;
         let zoom_u32 = self.camera.zoom as u32;
-
+	
         grid.try_inspect::<String, _>(|(x, y), grid| {
             let cell = grid.get_cell_unchecked((x, y));
             match &mut self.draw_opt {
@@ -248,8 +248,8 @@ impl Renderer {
             }
             if cell {
                 self.canvas.fill_rect(Rect::new(
-                    ((x as f64 - self.camera.x) * zoom_f64) as i32 + window_h_w,
-                    ((y as f64 - self.camera.y) * zoom_f64) as i32 + window_h_h,
+                    ((x as f64 - self.camera.x) * zoom_f64).floor() as i32 + window_h_w,
+                    ((y as f64 - self.camera.y) * zoom_f64).floor() as i32 + window_h_h,
                     zoom_u32,
                     zoom_u32,
                 ))?;
