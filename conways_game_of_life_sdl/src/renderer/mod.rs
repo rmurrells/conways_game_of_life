@@ -113,8 +113,9 @@ pub struct RendererBuilder {
 
 macro_rules! set_command {
     ($fn_name:ident, $var_name:ident, $t:ty) => {
-        pub fn $fn_name<F: FnMut($t) -> $t + 'static>(&mut self, f: F) {
+        pub fn $fn_name<F: FnMut($t) -> $t + 'static>(&mut self, f: F) -> &mut Self {
             self.stage_commands.$var_name = Some(Box::new(f));
+            self
         }
     };
 }
@@ -223,9 +224,8 @@ impl Renderer {
     pub fn render<G: Grid>(&mut self, grid: &G) -> IResult<()> {
         self.canvas.set_draw_color(self.background_color);
         self.canvas.clear();
-        match self.draw_opt {
-            DrawOptionPrivate::Static(cell_color) => self.canvas.set_draw_color(cell_color),
-            _ => (),
+        if let DrawOptionPrivate::Static(cell_color) = self.draw_opt {
+            self.canvas.set_draw_color(cell_color);
         }
 
         let window_size = self.canvas.window().size();
@@ -234,7 +234,7 @@ impl Renderer {
 
         let zoom_f64 = self.camera.zoom as f64;
         let zoom_u32 = self.camera.zoom as u32;
-	
+
         grid.try_inspect::<String, _>(|(x, y), grid| {
             let cell = grid.get_cell_unchecked((x, y));
             match &mut self.draw_opt {
@@ -262,12 +262,11 @@ impl Renderer {
     }
 
     pub fn update(&mut self) {
-        match self.draw_opt {
-            DrawOptionPrivate::DynamicCyclical(ref mut nccc) => nccc.cyclical_modulator.modulate(),
-            _ => (),
+        if let DrawOptionPrivate::DynamicCyclical(ref mut nccc) = self.draw_opt {
+            nccc.cyclical_modulator.modulate();
         }
     }
-    
+
     pub fn reset(&mut self) {
         match &mut self.draw_opt {
             DrawOptionPrivate::DynamicCyclical(ncc) => ncc.reset(),

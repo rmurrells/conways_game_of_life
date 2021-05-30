@@ -17,7 +17,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .video_subsystem_command(move |mut vss| {
             vss.window_size = (WIDTH as u32, HEIGHT as u32);
             vss
-        });
+        })
+        .canvas_builder_command(|cb| cb.present_vsync());
     interface_builder.renderer_builder.draw_opt =
         DrawOption::DynamicCyclical(CyclicalModulatorOpt::Rygcbm(Rygcbm::Red));
 
