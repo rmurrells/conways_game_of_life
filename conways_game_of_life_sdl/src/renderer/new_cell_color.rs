@@ -1,4 +1,4 @@
-use crate::{Grid, GridPoint};
+use crate::GridPoint;
 use sdl2::pixels::Color;
 
 #[derive(Clone, Copy)]
@@ -41,12 +41,6 @@ impl From<Rygcbm> for Color {
     }
 }
 
-pub trait ColorModulator {
-    fn color(&self) -> Color;
-    fn reset(&mut self);
-    fn modulate(&mut self);
-}
-
 #[derive(Clone, Copy)]
 pub enum CyclicalModulatorOpt {
     Rgb(Rgb),
@@ -74,18 +68,16 @@ impl CyclicalModulator {
             opt,
         }
     }
-}
 
-impl ColorModulator for CyclicalModulator {
-    fn color(&self) -> Color {
+    pub fn color(&self) -> Color {
         self.color_state
     }
 
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.color_state = self.opt.into();
     }
 
-    fn modulate(&mut self) {
+    pub fn modulate(&mut self) {
         match self.opt {
             CyclicalModulatorOpt::Rygcbm(_) => {
                 if self.color_state.r == u8::MAX {
@@ -126,42 +118,23 @@ impl ColorModulator for CyclicalModulator {
     }
 }
 
-pub trait NewCellColor {
-    fn update<G: Grid>(&mut self, grid: &G);
-    fn get_cell_color(&mut self, point: GridPoint, cell: bool) -> Color;
-    fn reset(&mut self);
-}
-
 pub struct NewCellColorCyclical {
     pub cyclical_modulator: CyclicalModulator,
     cell_states: Vec<Vec<(bool, Color)>>,
 }
 
 impl NewCellColorCyclical {
-    pub fn new(cyclical_modulator: CyclicalModulator) -> Self {
+    pub fn new(cyclical_modulator: CyclicalModulator, grid_size: GridPoint) -> Self {
         Self {
+            cell_states: vec![
+                vec![(false, cyclical_modulator.color()); grid_size.0 as usize];
+                grid_size.1 as usize
+            ],
             cyclical_modulator,
-            cell_states: Vec::new(),
-        }
-    }
-}
-
-impl NewCellColor for NewCellColorCyclical {
-    fn update<G: Grid>(&mut self, grid: &G) {
-        self.cyclical_modulator.modulate();
-        if self.cell_states.is_empty() {
-            let size = grid.size();
-            self.cell_states = vec![
-                vec![(false, self.cyclical_modulator.color()); size.0 as usize];
-                size.1 as usize
-            ];
-            grid.inspect(|(x, y), grid| {
-                self.cell_states[y as usize][x as usize].0 = grid.get_cell_unchecked((x, y));
-            });
         }
     }
 
-    fn get_cell_color(&mut self, (x, y): GridPoint, cell: bool) -> Color {
+    pub fn get_cell_color(&mut self, (x, y): GridPoint, cell: bool) -> Color {
         let cell_state = &mut self.cell_states[y as usize][x as usize];
         if cell {
             if !cell_state.0 {
@@ -174,8 +147,14 @@ impl NewCellColor for NewCellColorCyclical {
         cell_state.1
     }
 
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.cyclical_modulator.reset();
+	let color = self.cyclical_modulator.color();
+	for row in &mut self.cell_states {
+            for cell_state in row {
+                *cell_state = (false, color);
+            }
+        }
     }
 }
 
@@ -186,25 +165,15 @@ pub struct NewCellColorHeatMap {
 }
 
 impl NewCellColorHeatMap {
-    pub fn new(hot: Rgb, cold: Rgb) -> Self {
+    pub fn new(hot: Rgb, cold: Rgb, grid_size: GridPoint) -> Self {
         Self {
-            cell_states: Vec::new(),
+            cell_states: vec![vec![(false, hot.into()); grid_size.0 as usize]; grid_size.1 as usize],
             hot,
             cold,
         }
     }
-}
-
-impl NewCellColor for NewCellColorHeatMap {
-    fn update<G: Grid>(&mut self, grid: &G) {
-        if self.cell_states.is_empty() {
-            let size = grid.size();
-            self.cell_states =
-                vec![vec![(false, self.hot.into()); size.0 as usize]; size.1 as usize];
-        }
-    }
-
-    fn get_cell_color(&mut self, (x, y): GridPoint, cell: bool) -> Color {
+    
+    pub fn get_cell_color(&mut self, (x, y): GridPoint, cell: bool) -> Color {
         let cell_state = &mut self.cell_states[y as usize][x as usize];
         if cell {
             if !cell_state.0 {
@@ -252,7 +221,7 @@ impl NewCellColor for NewCellColorHeatMap {
         cell_state.1
     }
 
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         let hot = self.hot.into();
         for row in &mut self.cell_states {
             for cell_state in row {

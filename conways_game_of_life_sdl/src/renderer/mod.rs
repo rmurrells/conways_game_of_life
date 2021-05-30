@@ -1,7 +1,7 @@
 mod new_cell_color;
 
-use crate::{Grid, IResult};
-use new_cell_color::{CyclicalModulator, NewCellColor, NewCellColorCyclical, NewCellColorHeatMap};
+use crate::{Grid, GridPoint, IResult};
+use new_cell_color::{CyclicalModulator, NewCellColorCyclical, NewCellColorHeatMap};
 pub use new_cell_color::{CyclicalModulatorOpt, Rgb, Rygcbm};
 use sdl2::{
     pixels::Color,
@@ -22,20 +22,6 @@ enum DrawOptionPrivate {
     Static(Color),
     DynamicCyclical(NewCellColorCyclical),
     DynamicHeatMap(NewCellColorHeatMap),
-}
-
-impl From<DrawOption> for DrawOptionPrivate {
-    fn from(draw_option: DrawOption) -> DrawOptionPrivate {
-        match draw_option {
-            DrawOption::Static(color) => DrawOptionPrivate::Static(color),
-            DrawOption::DynamicCyclical(rgb) => DrawOptionPrivate::DynamicCyclical(
-                NewCellColorCyclical::new(CyclicalModulator::new(rgb)),
-            ),
-            DrawOption::DynamicHeatMap { hot, cold } => {
-                DrawOptionPrivate::DynamicHeatMap(NewCellColorHeatMap::new(hot, cold))
-            }
-        }
-    }
 }
 
 type Zoom = i32;
@@ -142,7 +128,7 @@ macro_rules! apply_command {
 }
 
 macro_rules! process_stages {
-    ($self:ident, $grid:ident, $([$build_stage:ident, $var_name:ident, $next_stage:ident, $conf_name:ident, $ret:expr]),+, $(,)?) => {
+    ($self:ident, $grid_size:ident, $([$build_stage:ident, $var_name:ident, $next_stage:ident, $conf_name:ident, $ret:expr]),+, $(,)?) => {
         loop {
 	$self.build_stage = match $self.build_stage {
 	    $(
@@ -157,15 +143,22 @@ macro_rules! process_stages {
 		    let zoom_range = (1, 20);
 		    let init_camera = match $self.camera_opt {
 			CameraOpt::Centered => {
-			    let size = $grid.size();
-			    Camera::new((size.0/2) as f64, (size.1/2) as f64, zoom, zoom_range)
+			    Camera::new(($grid_size.0/2) as f64, ($grid_size.1/2) as f64, zoom, zoom_range)
 			}
 			CameraOpt::Position {x, y} => Camera::new(x, y, zoom, zoom_range),
 		    };
                     return Ok(Renderer {
 			camera: init_camera,
 			init_camera,
-			draw_opt: $self.draw_opt.into(),
+			draw_opt: match $self.draw_opt {
+			    DrawOption::Static(color) => DrawOptionPrivate::Static(color),
+			    DrawOption::DynamicCyclical(rgb) => DrawOptionPrivate::DynamicCyclical(
+				NewCellColorCyclical::new(CyclicalModulator::new(rgb), $grid_size),
+			    ),
+			    DrawOption::DynamicHeatMap { hot, cold } => {
+				DrawOptionPrivate::DynamicHeatMap(NewCellColorHeatMap::new(hot, cold, $grid_size))
+			    }
+			},
 			background_color: $self.background_color,
                         _video: $self.video,
                         canvas,
@@ -201,10 +194,10 @@ impl RendererBuilder {
     set_command!(canvas_builder_command, canvas_builder, CanvasBuilder);
     set_command!(canvas_command, canvas, WindowCanvas);
 
-    pub fn build<G: Grid>(mut self, grid: &G) -> IResult<Renderer> {
+    pub fn build(mut self, grid_size: GridPoint) -> IResult<Renderer> {
         process_stages!(
             self,
-            grid,
+            grid_size,
             [
                 VideoSubsystem,
                 video_subsystem,
@@ -235,8 +228,8 @@ impl Renderer {
         self.canvas.clear();
         match self.draw_opt {
             DrawOptionPrivate::Static(cell_color) => self.canvas.set_draw_color(cell_color),
-            DrawOptionPrivate::DynamicCyclical(ref mut ncc) => ncc.update(grid),
-            DrawOptionPrivate::DynamicHeatMap(ref mut ncc) => ncc.update(grid),
+            DrawOptionPrivate::DynamicCyclical(ref mut nccc) => nccc.cyclical_modulator.modulate(),
+	    _ => (),
         }
 
         let window_size = self.canvas.window().size();

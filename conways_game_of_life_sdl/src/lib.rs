@@ -71,7 +71,7 @@ where
 
     pub fn build(self, grid: G) -> IResult<SDLInterface<G>> {
         Ok(SDLInterface::<G> {
-            renderer: self.renderer_builder.build(&grid)?,
+            renderer: self.renderer_builder.build(grid.size())?,
             input_pump: self.input_pump,
             _sdl: self.sdl,
             init_grid: grid.clone(),
