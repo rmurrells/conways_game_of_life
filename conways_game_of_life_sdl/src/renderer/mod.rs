@@ -229,16 +229,16 @@ impl Renderer {
         match self.draw_opt {
             DrawOptionPrivate::Static(cell_color) => self.canvas.set_draw_color(cell_color),
             DrawOptionPrivate::DynamicCyclical(ref mut nccc) => nccc.cyclical_modulator.modulate(),
-	    _ => (),
+            _ => (),
         }
 
         let window_size = self.canvas.window().size();
         let window_h_w = window_size.0 as i32 / 2;
         let window_h_h = window_size.1 as i32 / 2;
 
-	let zoom_f64 = self.camera.zoom as f64;
-	let zoom_u32 = self.camera.zoom as u32;
-	
+        let zoom_f64 = self.camera.zoom as f64;
+        let zoom_u32 = self.camera.zoom as u32;
+
         grid.try_inspect::<String, _>(|(x, y), grid| {
             let cell = grid.get_cell_unchecked((x, y));
             match &mut self.draw_opt {
