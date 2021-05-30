@@ -71,7 +71,7 @@ where
 
     pub fn build(self, grid: G) -> IResult<SDLInterface<G>> {
         Ok(SDLInterface::<G> {
-            renderer: self.renderer_builder.build()?,
+            renderer: self.renderer_builder.build(&grid)?,
             input_pump: self.input_pump,
             _sdl: self.sdl,
             init_grid: grid.clone(),
@@ -107,10 +107,13 @@ where
         for input in self.input_pump.poll_iter() {
             match input {
                 Input::MoveCamera { x, y } => {
-                    self.renderer.camera.x += x;
-                    self.renderer.camera.y += y;
+                    self.renderer.camera.move_focus(x as f64, y as f64);
+                    let grid_size = self.grid.size();
+                    self.renderer
+                        .camera
+                        .clamp(&(0., grid_size.0 as f64), &(0., grid_size.1 as f64));
                 }
-                Input::ZoomCamera { zoom } => self.renderer.camera.zoom(zoom),
+                Input::ZoomCamera { zoom } => self.renderer.camera.zoom(zoom.signum()),
                 Input::Pause => self.pause = !self.pause,
                 Input::Run => (),
                 Input::Reset => {

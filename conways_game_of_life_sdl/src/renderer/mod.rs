@@ -38,17 +38,19 @@ impl From<DrawOption> for DrawOptionPrivate {
     }
 }
 
+type Zoom = i32;
+
 #[derive(Clone, Copy)]
 pub struct Camera {
-    pub x: i32,
-    pub y: i32,
-    zoom: f64,
-    zoom_range: (f64, f64),
+    x: f64,
+    y: f64,
+    zoom: Zoom,
+    zoom_range: (Zoom, Zoom),
 }
 
 impl Camera {
-    fn new(x: i32, y: i32, zoom: f64, mut zoom_range: (f64, f64)) -> Self {
-        zoom_range.0 = zoom_range.0.max(0.);
+    fn new(x: f64, y: f64, zoom: Zoom, mut zoom_range: (Zoom, Zoom)) -> Self {
+        zoom_range.0 = zoom_range.0.max(1);
         Self {
             x,
             y,
@@ -57,10 +59,25 @@ impl Camera {
         }
     }
 
-    pub fn zoom(&mut self, zoom: f64) {
+    pub fn move_focus(&mut self, x: f64, y: f64) {
+        self.x += x / self.zoom as f64;
+        self.y += y / self.zoom as f64;
+    }
+
+    pub fn clamp(&mut self, x: &(f64, f64), y: &(f64, f64)) {
+        self.x = self.x.clamp(x.0, x.1);
+        self.y = self.y.clamp(y.0, y.1);
+    }
+
+    pub fn zoom(&mut self, zoom: Zoom) {
         self.zoom += zoom;
         self.zoom = self.zoom.clamp(self.zoom_range.0, self.zoom_range.1);
     }
+}
+
+pub enum CameraOpt {
+    Centered,
+    Position { x: f64, y: f64 },
 }
 
 enum RendererBuildStage {
@@ -103,7 +120,7 @@ pub struct RendererBuilder {
     pub video: VideoSubsystem,
     pub background_color: Color,
     pub draw_opt: DrawOption,
-    pub camera_opt: Option<Camera>,
+    pub camera_opt: CameraOpt,
     build_stage: RendererBuildStage,
     stage_commands: StageCommands,
 }
@@ -116,8 +133,16 @@ macro_rules! set_command {
     };
 }
 
+macro_rules! apply_command {
+    ($self:ident, $var_name:ident, $conf_name:ident) => {
+        if let Some(command) = &mut $self.stage_commands.$var_name {
+            $conf_name = command($conf_name);
+        }
+    };
+}
+
 macro_rules! process_stages {
-    ($self:ident, $([$build_stage:ident, $var_name:ident, $next_stage:ident, $conf_name:ident, $ret:expr]),+, $(,)?) => {
+    ($self:ident, $grid:ident, $([$build_stage:ident, $var_name:ident, $next_stage:ident, $conf_name:ident, $ret:expr]),+, $(,)?) => {
         loop {
 	$self.build_stage = match $self.build_stage {
 	    $(
@@ -128,7 +153,15 @@ macro_rules! process_stages {
 	    )+
 	        RendererBuildStage::Canvas(mut canvas) => {
 		    apply_command!($self, canvas, canvas);
-		    let init_camera = $self.camera_opt.or(Some(Camera::new(0, 0, 1., (0.1, 10.)))).unwrap();
+		    let zoom = 1;
+		    let zoom_range = (1, 20);
+		    let init_camera = match $self.camera_opt {
+			CameraOpt::Centered => {
+			    let size = $grid.size();
+			    Camera::new((size.0/2) as f64, (size.1/2) as f64, zoom, zoom_range)
+			}
+			CameraOpt::Position {x, y} => Camera::new(x, y, zoom, zoom_range),
+		    };
                     return Ok(Renderer {
 			camera: init_camera,
 			init_camera,
@@ -143,21 +176,13 @@ macro_rules! process_stages {
     }
 }
 
-macro_rules! apply_command {
-    ($self:ident, $var_name:ident, $conf_name:ident) => {
-        if let Some(command) = &mut $self.stage_commands.$var_name {
-            $conf_name = command($conf_name);
-        }
-    };
-}
-
 impl RendererBuilder {
     pub fn new(sdl: &Sdl) -> IResult<Self> {
         Ok(Self {
             draw_opt: DrawOption::Static(Color::RGB(200, 200, 200)),
             background_color: Color::RGB(0, 0, 0),
             video: sdl.video()?,
-            camera_opt: None,
+            camera_opt: CameraOpt::Centered,
             build_stage: RendererBuildStage::VideoSubsystem(VideoSubsystemStage {
                 window_name: "conways_game_of_life".into(),
                 window_size: (800, 600),
@@ -176,9 +201,10 @@ impl RendererBuilder {
     set_command!(canvas_builder_command, canvas_builder, CanvasBuilder);
     set_command!(canvas_command, canvas, WindowCanvas);
 
-    pub fn build(mut self) -> IResult<Renderer> {
+    pub fn build<G: Grid>(mut self, grid: &G) -> IResult<Renderer> {
         process_stages!(
             self,
+            grid,
             [
                 VideoSubsystem,
                 video_subsystem,
@@ -214,12 +240,12 @@ impl Renderer {
         }
 
         let window_size = self.canvas.window().size();
-        let grid_size = grid.size();
-        let cell_w =
-            (((window_size.0 / grid_size.0 as u32) as f64 * self.camera.zoom) as u32).max(1);
-        let cell_h =
-            (((window_size.1 / grid_size.1 as u32) as f64 * self.camera.zoom) as u32).max(1);
+        let window_h_w = window_size.0 as i32 / 2;
+        let window_h_h = window_size.1 as i32 / 2;
 
+	let zoom_f64 = self.camera.zoom as f64;
+	let zoom_u32 = self.camera.zoom as u32;
+	
         grid.try_inspect::<String, _>(|(x, y), grid| {
             let cell = grid.get_cell_unchecked((x, y));
             match &mut self.draw_opt {
@@ -233,10 +259,10 @@ impl Renderer {
             }
             if cell {
                 self.canvas.fill_rect(Rect::new(
-                    (x as u32 * cell_w) as i32 - self.camera.x,
-                    (y as u32 * cell_h) as i32 - self.camera.y,
-                    cell_w,
-                    cell_h,
+                    ((x as f64 - self.camera.x) * zoom_f64) as i32 + window_h_w,
+                    ((y as f64 - self.camera.y) * zoom_f64) as i32 + window_h_h,
+                    zoom_u32,
+                    zoom_u32,
                 ))?;
             }
             Ok(())

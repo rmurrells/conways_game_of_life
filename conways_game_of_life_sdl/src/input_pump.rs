@@ -17,7 +17,6 @@ impl Mouse {
 
 struct InIter {
     mouse: Mouse,
-    zoom_scaling: f64,
 }
 
 pub struct InputPump {
@@ -32,7 +31,7 @@ pub struct InputIterator<'a> {
 
 pub enum Input {
     MoveCamera { x: i32, y: i32 },
-    ZoomCamera { zoom: f64 },
+    ZoomCamera { zoom: i32 },
     Pause,
     Run,
     Reset,
@@ -77,9 +76,7 @@ impl Iterator for InputIterator<'_> {
                     Input::Run
                 }
             }
-            Event::MouseWheel { y, .. } => Input::ZoomCamera {
-                zoom: y as f64 * self.ii.zoom_scaling,
-            },
+            Event::MouseWheel { y, .. } => Input::ZoomCamera { zoom: y },
             _ => Input::Run,
         })
     }
@@ -91,7 +88,6 @@ impl InputPump {
             event_pump: sdl.event_pump()?,
             ii: InIter {
                 mouse: Mouse::new(),
-                zoom_scaling: 0.1,
             },
         })
     }
