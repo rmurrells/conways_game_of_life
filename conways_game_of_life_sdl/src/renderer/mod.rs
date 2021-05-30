@@ -141,15 +141,13 @@ macro_rules! process_stages {
 		    apply_command!($self, canvas, canvas);
 		    let zoom = 1;
 		    let zoom_range = (1, 20);
-		    let init_camera = match $self.camera_opt {
-			CameraOpt::Centered => {
-			    Camera::new(($grid_size.0/2) as f64, ($grid_size.1/2) as f64, zoom, zoom_range)
-			}
-			CameraOpt::Position {x, y} => Camera::new(x, y, zoom, zoom_range),
-		    };
                     return Ok(Renderer {
-			camera: init_camera,
-			init_camera,
+			camera: match $self.camera_opt {
+			    CameraOpt::Centered => {
+				Camera::new(($grid_size.0/2) as f64, ($grid_size.1/2) as f64, zoom, zoom_range)
+			    }
+			    CameraOpt::Position {x, y} => Camera::new(x, y, zoom, zoom_range),
+			},
 			draw_opt: match $self.draw_opt {
 			    DrawOption::Static(color) => DrawOptionPrivate::Static(color),
 			    DrawOption::DynamicCyclical(rgb) => DrawOptionPrivate::DynamicCyclical(
@@ -216,7 +214,6 @@ impl RendererBuilder {
 pub struct Renderer {
     pub camera: Camera,
     pub background_color: Color,
-    init_camera: Camera,
     _video: VideoSubsystem,
     canvas: WindowCanvas,
     draw_opt: DrawOptionPrivate,
@@ -228,7 +225,6 @@ impl Renderer {
         self.canvas.clear();
         match self.draw_opt {
             DrawOptionPrivate::Static(cell_color) => self.canvas.set_draw_color(cell_color),
-            DrawOptionPrivate::DynamicCyclical(ref mut nccc) => nccc.cyclical_modulator.modulate(),
             _ => (),
         }
 
@@ -265,8 +261,14 @@ impl Renderer {
         Ok(())
     }
 
+    pub fn update(&mut self) {
+        match self.draw_opt {
+            DrawOptionPrivate::DynamicCyclical(ref mut nccc) => nccc.cyclical_modulator.modulate(),
+            _ => (),
+        }
+    }
+    
     pub fn reset(&mut self) {
-        self.camera = self.init_camera;
         match &mut self.draw_opt {
             DrawOptionPrivate::DynamicCyclical(ncc) => ncc.reset(),
             DrawOptionPrivate::DynamicHeatMap(ncc) => ncc.reset(),

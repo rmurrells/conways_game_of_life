@@ -117,18 +117,17 @@ where
                 Input::Pause => self.pause = !self.pause,
                 Input::Run => (),
                 Input::Reset => {
-                    self.grid = self.init_grid.clone();
                     self.renderer.reset();
-                    if self.pause {
-                        self.renderer.render(&self.grid)?;
-                    }
-                }
+                    self.grid = self.init_grid.clone();
+                 }
                 Input::Quit => run = false,
             }
         }
+
+        self.renderer.render(&self.grid)?;
         if !self.pause {
-            self.renderer.render(&self.grid)?;
             self.grid.update();
+	    self.renderer.update();
         }
         Ok(run)
     }
