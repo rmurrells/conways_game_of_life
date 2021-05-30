@@ -130,10 +130,18 @@ struct CellStates {
 
 impl CellStates {
     fn new(color: Color, grid_size: GridPoint) -> Self {
-	Self {cells: vec![
-                vec![CellState { state: false, color  }; grid_size.0 as usize];
+        Self {
+            cells: vec![
+                vec![
+                    CellState {
+                        state: false,
+                        color
+                    };
+                    grid_size.0 as usize
+                ];
                 grid_size.1 as usize
-        ]}
+            ],
+        }
     }
 
     fn get_cell(&mut self, (x, y): GridPoint) -> &mut CellState {
@@ -143,7 +151,10 @@ impl CellStates {
     fn reset(&mut self, color: Color) {
         for row in &mut self.cells {
             for cell_state in row {
-                *cell_state = CellState{ state: false, color };
+                *cell_state = CellState {
+                    state: false,
+                    color,
+                };
             }
         }
     }
@@ -163,7 +174,7 @@ impl NewCellColorCyclical {
     }
 
     pub fn get_cell_color(&mut self, point: GridPoint, cell: bool) -> Color {
-	let cell_state = self.cell_states.get_cell(point);
+        let cell_state = self.cell_states.get_cell(point);
         if cell {
             if !cell_state.state {
                 cell_state.color = self.cyclical_modulator.color();
@@ -245,6 +256,6 @@ impl NewCellColorHeatMap {
     }
 
     pub fn reset(&mut self) {
-	self.cell_states.reset(self.hot.into());
+        self.cell_states.reset(self.hot.into());
     }
 }
