@@ -54,6 +54,13 @@ impl Iterator for InputIterator<'_> {
                 keycode: Some(Keycode::Escape),
                 ..
             } => Input::Quit,
+            Event::KeyDown {
+                keycode: Some(key), ..
+            } => match key {
+                Keycode::Equals => Input::ZoomCamera { zoom: 1 },
+                Keycode::Minus => Input::ZoomCamera { zoom: -1 },
+                _ => Input::Run,
+            },
             Event::KeyUp {
                 keycode: Some(key), ..
             } => match key {
