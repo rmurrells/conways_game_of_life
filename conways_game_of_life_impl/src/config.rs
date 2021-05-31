@@ -82,6 +82,12 @@ pub fn penta_decathlon<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> 
     grid.set_cell((x + 1, y + 7), false)
 }
 
+pub fn glider<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
+    grid.set_cell((x + 1, y), true)?;
+    grid.set_cell((x + 2, y + 1), true)?;
+    grid.set_hline(x, 3, y + 2, true)
+}
+
 pub fn lwss<G: Grid>(grid: &mut G, (x, y): GridPoint) -> BResult<()> {
     grid.set_cell((x + 1, y), true)?;
     grid.set_cell((x + 4, y), true)?;
