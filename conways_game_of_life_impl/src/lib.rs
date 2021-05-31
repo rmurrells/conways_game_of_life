@@ -39,7 +39,6 @@ pub(crate) mod private {
     use super::*;
     pub trait GridPrivate {
         fn _size(&self) -> GridPoint;
-        fn _wrap_around(&self) -> bool;
         fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator>;
         fn _get_next_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool;
 
@@ -183,6 +182,34 @@ pub trait Grid: GridPrivate {
     }
 }
 
+fn next_cell_state_scan_wrap_around<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
+    let size = grid.size();
+
+    fn get_range(v: GridUnit, size: GridUnit) -> [GridUnit; 3] {
+        let v = v as i32;
+        let range = size as i32 - 1;
+        [
+            if v == 0 { range } else { v - 1 } as GridUnit,
+            v as GridUnit,
+            if v == range { 0 } else { v + 1 } as GridUnit,
+        ]
+    }
+    let x_range = get_range(x, size.0);
+    let y_range = get_range(y, size.1);
+    let mut counter = 0;
+
+    for &y_scan in &y_range {
+        for &x_scan in &x_range {
+            if (x_scan != x || y_scan != y) && grid.get_cell_unchecked((x_scan, y_scan)) {
+                counter += 1;
+            }
+        }
+    }
+
+    counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)))
+}
+
+#[allow(dead_code)]
 fn next_cell_state_individual<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
     let mut counter = 0;
 
@@ -214,69 +241,6 @@ fn next_cell_state_individual<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
     }
     if grid.get_cell((x + 1, y + 1)) {
         counter += 1;
-    }
-
-    counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)))
-}
-
-fn next_cell_state_scan_wrap_around<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
-    let size = grid.size();
-    let x_range = size.0 as i32 - 1;
-    let y_range = size.1 as i32 - 1;
-
-    let x_i32 = x as i32;
-    let y_i32 = y as i32;
-
-    fn get_range(v: i32) -> (i32, i32) {
-        (v - 1, v + 1)
-    }
-    let (x_min, x_max) = get_range(x_i32);
-    let (y_min, y_max) = get_range(y_i32);
-    let mut counter = 0;
-
-    fn wrap_around(v: &mut i32, range: i32) {
-        if *v < 0 {
-            *v = range;
-        } else if *v > range {
-            *v = 0;
-        }
-    }
-
-    for mut y_scan in y_min..=y_max {
-        wrap_around(&mut y_scan, y_range);
-        for mut x_scan in x_min..=x_max {
-            if x_scan != x_i32 || y_scan != y_i32 {
-                wrap_around(&mut x_scan, x_range);
-                if grid.get_cell_unchecked((x_scan as GridUnit, y_scan as GridUnit)) {
-                    counter += 1;
-                }
-            }
-        }
-    }
-
-    counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)))
-}
-
-#[allow(dead_code)]
-fn next_cell_state_scan<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
-    let size = grid.size();
-
-    fn get_range(v: GridUnit, upper: GridUnit) -> GridPoint {
-        (
-            if v == 0 { 0 } else { v - 1 },
-            if v == upper - 1 { v } else { v + 1 },
-        )
-    }
-    let (x_min, x_max) = get_range(x, size.0);
-    let (y_min, y_max) = get_range(y, size.1);
-    let mut counter = 0;
-
-    for y_scan in y_min..=y_max {
-        for x_scan in x_min..=x_max {
-            if (x_scan != x || y_scan != y) && grid.get_cell_unchecked((x_scan, y_scan)) {
-                counter += 1;
-            }
-        }
     }
 
     counter == 3 || (counter == 2 && grid.get_cell_unchecked((x, y)))
@@ -322,30 +286,15 @@ fn set_next_state<G: Grid>(grid: &mut G) {
         }
     }
 
-    if grid._wrap_around() {
-        for x in 0..size.0 {
-            *grid._get_next_cell_unchecked_mut((x, 0)) =
-                next_cell_state_scan_wrap_around(grid, (x, 0));
-            *grid._get_next_cell_unchecked_mut((x, y_max)) =
-                next_cell_state_scan_wrap_around(grid, (x, y_max));
-        }
-        for y in 1..y_max {
-            *grid._get_next_cell_unchecked_mut((0, y)) =
-                next_cell_state_scan_wrap_around(grid, (0, y));
-            *grid._get_next_cell_unchecked_mut((x_max, y)) =
-                next_cell_state_scan_wrap_around(grid, (x_max, y));
-        }
-    } else {
-        for x in 0..size.0 {
-            *grid._get_next_cell_unchecked_mut((x, 0)) = next_cell_state_individual(grid, (x, 0));
-            *grid._get_next_cell_unchecked_mut((x, y_max)) =
-                next_cell_state_individual(grid, (x, y_max));
-        }
-        for y in 1..y_max {
-            *grid._get_next_cell_unchecked_mut((0, y)) = next_cell_state_individual(grid, (0, y));
-            *grid._get_next_cell_unchecked_mut((x_max, y)) =
-                next_cell_state_individual(grid, (x_max, y));
-        }
+    for x in 0..size.0 {
+        *grid._get_next_cell_unchecked_mut((x, 0)) = next_cell_state_scan_wrap_around(grid, (x, 0));
+        *grid._get_next_cell_unchecked_mut((x, y_max)) =
+            next_cell_state_scan_wrap_around(grid, (x, y_max));
+    }
+    for y in 1..y_max {
+        *grid._get_next_cell_unchecked_mut((0, y)) = next_cell_state_scan_wrap_around(grid, (0, y));
+        *grid._get_next_cell_unchecked_mut((x_max, y)) =
+            next_cell_state_scan_wrap_around(grid, (x_max, y));
     }
 }
 
@@ -353,7 +302,6 @@ type Grid1dVecContainer = Vec<bool>;
 
 #[derive(Clone)]
 pub struct Grid1dVec {
-    pub wrap_around: bool,
     size: GridPoint,
     current_vec: Grid1dVecContainer,
     next_vec: Grid1dVecContainer,
@@ -367,7 +315,6 @@ impl Grid1dVec {
             size,
             current_vec: next_vec.clone(),
             next_vec,
-            wrap_around: true,
             frame_regulator_opt: None,
         }
     }
@@ -384,10 +331,6 @@ impl Grid1dVec {
 impl GridPrivate for Grid1dVec {
     fn _size(&self) -> GridPoint {
         self.size
-    }
-
-    fn _wrap_around(&self) -> bool {
-        self.wrap_around
     }
 
     fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
@@ -443,7 +386,6 @@ type Grid2dVecContainer = Vec<Vec<bool>>;
 
 #[derive(Clone)]
 pub struct Grid2dVec {
-    pub wrap_around: bool,
     size: GridPoint,
     current_vec: Grid2dVecContainer,
     next_vec: Grid2dVecContainer,
@@ -457,7 +399,6 @@ impl Grid2dVec {
             size,
             current_vec: next_vec.clone(),
             next_vec,
-            wrap_around: true,
             frame_regulator_opt: None,
         }
     }
@@ -466,10 +407,6 @@ impl Grid2dVec {
 impl GridPrivate for Grid2dVec {
     fn _size(&self) -> GridPoint {
         self.size
-    }
-
-    fn _wrap_around(&self) -> bool {
-        self.wrap_around
     }
 
     fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
@@ -523,7 +460,6 @@ type Grid2dArrContainer<const WIDTH: usize, const HEIGHT: usize> = [[bool; WIDTH
 
 #[derive(Clone)]
 pub struct Grid2dArr<const WIDTH: usize, const HEIGHT: usize> {
-    pub wrap_around: bool,
     current_arr: Grid2dArrContainer<WIDTH, HEIGHT>,
     next_arr: Grid2dArrContainer<WIDTH, HEIGHT>,
     frame_regulator_opt: Option<FrameRegulator>,
@@ -540,7 +476,6 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid2dArr<WIDTH, HEIGHT> {
                 ret.next_arr[y][x] = false;
             }
         }
-        ret.wrap_around = true;
         ret.frame_regulator_opt = None;
         ret
     }
@@ -549,10 +484,6 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid2dArr<WIDTH, HEIGHT> {
 impl<const WIDTH: usize, const HEIGHT: usize> private::GridPrivate for Grid2dArr<WIDTH, HEIGHT> {
     fn _size(&self) -> GridPoint {
         (WIDTH as GridUnit, HEIGHT as GridUnit)
-    }
-
-    fn _wrap_around(&self) -> bool {
-        self.wrap_around
     }
 
     fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
@@ -605,10 +536,6 @@ impl<const WIDTH: usize, const HEIGHT: usize> fmt::Debug for Grid2dArr<WIDTH, HE
 impl<G: GridPrivate> GridPrivate for Box<G> {
     fn _size(&self) -> GridPoint {
         G::_size(self)
-    }
-
-    fn _wrap_around(&self) -> bool {
-        G::_wrap_around(self)
     }
 
     fn _frame_regulator_opt(&mut self) -> &mut Option<FrameRegulator> {
