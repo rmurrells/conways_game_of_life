@@ -3,7 +3,6 @@ use conways_game_of_life_impl::{config, BResult, Grid, Grid2dArr};
 fn main() -> BResult<()> {
     let mut grid = Grid2dArr::<80, 20>::empty();
     grid.set_fps(10);
-    grid.wrap_around = true;
     for x in 0..=15 {
         for y in 0..=3 {
             config::glider(&mut grid, (x * 5, y * 5))?;

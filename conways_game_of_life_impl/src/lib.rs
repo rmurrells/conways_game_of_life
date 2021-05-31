@@ -367,7 +367,7 @@ impl Grid1dVec {
             size,
             current_vec: next_vec.clone(),
             next_vec,
-            wrap_around: false,
+            wrap_around: true,
             frame_regulator_opt: None,
         }
     }
@@ -457,7 +457,7 @@ impl Grid2dVec {
             size,
             current_vec: next_vec.clone(),
             next_vec,
-            wrap_around: false,
+            wrap_around: true,
             frame_regulator_opt: None,
         }
     }
@@ -540,7 +540,7 @@ impl<const WIDTH: usize, const HEIGHT: usize> Grid2dArr<WIDTH, HEIGHT> {
                 ret.next_arr[y][x] = false;
             }
         }
-        ret.wrap_around = false;
+        ret.wrap_around = true;
         ret.frame_regulator_opt = None;
         ret
     }
