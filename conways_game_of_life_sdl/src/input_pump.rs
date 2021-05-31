@@ -31,11 +31,12 @@ pub struct InputIterator<'a> {
 
 pub enum Input {
     MoveCamera { x: i32, y: i32 },
-    ZoomCamera { zoom: i32 },
+    OneFrame,
     Pause,
-    Run,
     Reset,
+    Run,
     Quit,
+    ZoomCamera { zoom: i32 },
 }
 
 impl Iterator for InputIterator<'_> {
@@ -59,6 +60,7 @@ impl Iterator for InputIterator<'_> {
             } => match key {
                 Keycode::Equals => Input::ZoomCamera { zoom: 1 },
                 Keycode::Minus => Input::ZoomCamera { zoom: -1 },
+                Keycode::Return => Input::OneFrame,
                 _ => Input::Run,
             },
             Event::KeyUp {

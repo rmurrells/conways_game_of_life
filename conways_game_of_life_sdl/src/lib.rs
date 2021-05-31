@@ -104,6 +104,7 @@ where
 
     pub fn tick(&mut self) -> IResult<bool> {
         let mut run = true;
+        let mut one_frame = false;
         for input in self.input_pump.poll_iter() {
             match input {
                 Input::MoveCamera { x, y } => {
@@ -113,7 +114,7 @@ where
                         .camera
                         .clamp(&(0., grid_size.0 as f64), &(0., grid_size.1 as f64));
                 }
-                Input::ZoomCamera { zoom } => self.renderer.camera.zoom(zoom.signum()),
+                Input::OneFrame => one_frame = true,
                 Input::Pause => self.pause = !self.pause,
                 Input::Run => (),
                 Input::Reset => {
@@ -121,11 +122,12 @@ where
                     self.grid = self.init_grid.clone();
                 }
                 Input::Quit => run = false,
+                Input::ZoomCamera { zoom } => self.renderer.camera.zoom(zoom.signum()),
             }
         }
 
         self.renderer.render(&self.grid)?;
-        if !self.pause {
+        if !self.pause || one_frame {
             self.grid.update();
             self.renderer.update();
         }
