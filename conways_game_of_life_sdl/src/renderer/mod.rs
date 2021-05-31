@@ -1,6 +1,6 @@
 mod new_cell_color;
 
-use crate::{Grid, GridPoint, IResult};
+use crate::{input_pump::Mouse, Grid, GridPoint, GridUnit, IResult};
 use new_cell_color::{CyclicalModulator, NewCellColorCyclical, NewCellColorHeatMap};
 pub use new_cell_color::{CyclicalModulatorOpt, Rgb, Rygcbm};
 use sdl2::{
@@ -221,7 +221,40 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn render<G: Grid>(&mut self, grid: &G) -> IResult<()> {
+    pub fn map_window_pos_to_cell(
+        &self,
+        (x, y): (i32, i32),
+        grid_size: GridPoint,
+    ) -> Option<GridPoint> {
+        fn get_coord(
+            v: i32,
+            window_h: i32,
+            zoom: f64,
+            camera: f64,
+            grid_size: GridUnit,
+        ) -> Option<GridUnit> {
+            let coord = (v - window_h) as f64 / zoom + camera;
+            if coord >= 0. {
+                let coord = coord as GridUnit;
+                if coord < grid_size {
+                    return Some(coord as GridUnit);
+                }
+            }
+            None
+        }
+
+        let window_size = self.canvas.window().size();
+        let window_h_w = window_size.0 as i32 / 2;
+        let window_h_h = window_size.1 as i32 / 2;
+        let zoom_f64 = self.camera.zoom as f64;
+
+        Some((
+            get_coord(x, window_h_w, zoom_f64, self.camera.x, grid_size.0)?,
+            get_coord(y, window_h_h, zoom_f64, self.camera.y, grid_size.1)?,
+        ))
+    }
+
+    pub fn render<G: Grid>(&mut self, grid: &G, mouse: &Mouse) -> IResult<()> {
         self.canvas.set_draw_color(self.background_color);
         self.canvas.clear();
         if let DrawOptionPrivate::Static(cell_color) = self.draw_opt {
@@ -257,13 +290,25 @@ impl Renderer {
             Ok(())
         })?;
 
+        if let Some((x, y)) = self.map_window_pos_to_cell(mouse.position(), grid.size()) {
+            self.canvas.set_draw_color(Color::RGB(255, 255, 255));
+            self.canvas.draw_rect(Rect::new(
+                ((x as f64 - self.camera.x) * zoom_f64).ceil() as i32 + window_h_w,
+                ((y as f64 - self.camera.y) * zoom_f64).ceil() as i32 + window_h_h,
+                zoom_u32,
+                zoom_u32,
+            ))?;
+        }
+
         self.canvas.present();
         Ok(())
     }
 
     pub fn update(&mut self) {
-        if let DrawOptionPrivate::DynamicCyclical(ref mut nccc) = self.draw_opt {
-            nccc.cyclical_modulator.modulate();
+        match &mut self.draw_opt {
+            DrawOptionPrivate::DynamicCyclical(ncc) => ncc.update(),
+            DrawOptionPrivate::DynamicHeatMap(ncc) => ncc.update(),
+            _ => (),
         }
     }
 

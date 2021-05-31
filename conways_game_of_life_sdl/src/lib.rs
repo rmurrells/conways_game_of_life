@@ -105,8 +105,22 @@ where
     pub fn tick(&mut self) -> IResult<bool> {
         let mut run = true;
         let mut one_frame = false;
-        for input in self.input_pump.poll_iter() {
+        while let Some(input) = self.input_pump.poll_event() {
             match input {
+                Input::DrawCell { point } => {
+                    if let Some(point) = self
+                        .renderer
+                        .map_window_pos_to_cell(point, self.grid.size())
+                    {
+                        if let Err(oob) = self.input_pump.draw(&mut self.grid, point) {
+                            println!(
+                                "Warning: could not toggle point: {:?} in grid {:?}",
+                                oob.point(),
+                                oob.size()
+                            );
+                        }
+                    }
+                }
                 Input::MoveCamera { x, y } => {
                     self.renderer.camera.move_focus(x as f64, y as f64);
                     let grid_size = self.grid.size();
@@ -116,17 +130,16 @@ where
                 }
                 Input::OneFrame => one_frame = true,
                 Input::Pause => self.pause = !self.pause,
+                Input::Quit => run = false,
                 Input::Run => (),
                 Input::Reset => {
                     self.renderer.reset();
                     self.grid = self.init_grid.clone();
                 }
-                Input::Quit => run = false,
                 Input::ZoomCamera { zoom } => self.renderer.camera.zoom(zoom.signum()),
             }
         }
-
-        self.renderer.render(&self.grid)?;
+        self.renderer.render(&self.grid, self.input_pump.mouse())?;
         if !self.pause || one_frame {
             self.grid.update();
             self.renderer.update();

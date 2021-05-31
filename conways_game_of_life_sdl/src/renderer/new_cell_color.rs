@@ -125,7 +125,7 @@ struct CellState {
 }
 
 struct CellStates {
-    cells: Vec<Vec<CellState>>,
+    pub cells: Vec<Vec<CellState>>,
 }
 
 impl CellStates {
@@ -186,6 +186,10 @@ impl NewCellColorCyclical {
         cell_state.color
     }
 
+    pub fn update(&mut self) {
+        self.cyclical_modulator.modulate();
+    }
+
     pub fn reset(&mut self) {
         self.cyclical_modulator.reset();
         self.cell_states.reset(self.cyclical_modulator.color());
@@ -213,7 +217,16 @@ impl NewCellColorHeatMap {
             if !cell_state.state {
                 cell_state.color = self.hot.into();
                 cell_state.state = true;
-            } else {
+            }
+        } else {
+            cell_state.state = false;
+        }
+        cell_state.color
+    }
+
+    pub fn update(&mut self) {
+        for row in &mut self.cell_states.cells {
+            for cell_state in row {
                 match self.hot {
                     Rgb::Red => {
                         if cell_state.color.r > 0 {
@@ -249,10 +262,7 @@ impl NewCellColorHeatMap {
                     }
                 }
             }
-        } else {
-            cell_state.state = false;
         }
-        cell_state.color
     }
 
     pub fn reset(&mut self) {

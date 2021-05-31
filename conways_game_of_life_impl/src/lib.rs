@@ -21,6 +21,14 @@ pub struct OutOfBounds {
     point: GridPoint,
     size: GridPoint,
 }
+impl OutOfBounds {
+    pub fn point(&self) -> GridPoint {
+        self.point
+    }
+    pub fn size(&self) -> GridPoint {
+        self.size
+    }
+}
 impl fmt::Display for OutOfBounds {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
@@ -146,7 +154,7 @@ pub trait Grid: GridPrivate {
         y: GridUnit,
         b: bool,
     ) -> BResult<()> {
-        self.set_line(start, length, y, b, SetLineOpt::Horizontal)
+        self.set_aaline(start, length, y, b, SetLineOpt::Horizontal)
     }
 
     fn set_vline(
@@ -156,10 +164,10 @@ pub trait Grid: GridPrivate {
         x: GridUnit,
         b: bool,
     ) -> BResult<()> {
-        self.set_line(start, length, x, b, SetLineOpt::Vertical)
+        self.set_aaline(start, length, x, b, SetLineOpt::Vertical)
     }
 
-    fn set_line(
+    fn set_aaline(
         &mut self,
         start: GridUnit,
         length: GridUnit,

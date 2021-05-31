@@ -1,55 +1,64 @@
-use crate::IResult;
-use sdl2::{event::Event, keyboard::Keycode, mouse::MouseButton, EventPump, Sdl};
+use crate::{BResult, Grid, GridPoint, IResult};
+use sdl2::{
+    event::Event,
+    keyboard::Keycode,
+    mouse::{MouseButton, MouseState},
+    EventPump, Sdl,
+};
 
-struct Mouse {
+pub struct Mouse {
+    x: i32,
+    y: i32,
     left: bool,
     right: bool,
 }
 
 impl Mouse {
-    fn new() -> Self {
+    pub fn position(&self) -> (i32, i32) {
+        (self.x, self.y)
+    }
+}
+
+impl From<MouseState> for Mouse {
+    fn from(mouse_state: MouseState) -> Self {
         Self {
-            left: false,
-            right: false,
+            x: mouse_state.x(),
+            y: mouse_state.y(),
+            left: mouse_state.left(),
+            right: mouse_state.right(),
         }
     }
 }
 
-struct InIter {
-    mouse: Mouse,
-}
-
 pub struct InputPump {
     event_pump: EventPump,
-    ii: InIter,
-}
-
-pub struct InputIterator<'a> {
-    poll_iter: sdl2::event::EventPollIterator<'a>,
-    ii: &'a mut InIter,
+    mouse: Mouse,
+    draw_state: Option<bool>,
 }
 
 pub enum Input {
+    DrawCell { point: (i32, i32) },
     MoveCamera { x: i32, y: i32 },
     OneFrame,
     Pause,
+    Quit,
     Reset,
     Run,
-    Quit,
     ZoomCamera { zoom: i32 },
 }
 
-impl Iterator for InputIterator<'_> {
-    type Item = Input;
-    fn next(&mut self) -> Option<Self::Item> {
-        fn match_mouse(mouse: &mut Mouse, mouse_btn: MouseButton, set: bool) {
-            match mouse_btn {
-                MouseButton::Left => mouse.left = set,
-                MouseButton::Right => mouse.right = set,
-                _ => (),
-            }
-        }
-        Some(match self.poll_iter.next()? {
+impl InputPump {
+    pub fn new(sdl: &Sdl) -> IResult<Self> {
+        let event_pump = sdl.event_pump()?;
+        Ok(Self {
+            mouse: event_pump.mouse_state().into(),
+            event_pump,
+            draw_state: None,
+        })
+    }
+
+    pub fn poll_event(&mut self) -> Option<Input> {
+        Some(match self.event_pump.poll_event()? {
             Event::Quit { .. }
             | Event::KeyUp {
                 keycode: Some(Keycode::Escape),
@@ -70,17 +79,41 @@ impl Iterator for InputIterator<'_> {
                 Keycode::Space => Input::Pause,
                 _ => Input::Run,
             },
-            Event::MouseButtonDown { mouse_btn, .. } => {
-                match_mouse(&mut self.ii.mouse, mouse_btn, true);
-                Input::Run
-            }
+            Event::MouseButtonDown { mouse_btn, .. } => match mouse_btn {
+                MouseButton::Left => {
+                    self.mouse.left = true;
+                    Input::Run
+                }
+                MouseButton::Right => {
+                    self.mouse.right = true;
+                    Input::DrawCell {
+                        point: (self.mouse.x, self.mouse.y),
+                    }
+                }
+                _ => Input::Run,
+            },
             Event::MouseButtonUp { mouse_btn, .. } => {
-                match_mouse(&mut self.ii.mouse, mouse_btn, false);
+                match mouse_btn {
+                    MouseButton::Left => self.mouse.left = false,
+                    MouseButton::Right => {
+                        self.mouse.right = false;
+                        self.draw_state = None;
+                    }
+                    _ => (),
+                }
                 Input::Run
             }
-            Event::MouseMotion { xrel, yrel, .. } => {
-                if self.ii.mouse.left {
+            Event::MouseMotion {
+                x, y, xrel, yrel, ..
+            } => {
+                self.mouse.x = x;
+                self.mouse.y = y;
+                if self.mouse.left {
                     Input::MoveCamera { x: -xrel, y: -yrel }
+                } else if self.mouse.right {
+                    Input::DrawCell {
+                        point: (self.mouse.x, self.mouse.y),
+                    }
                 } else {
                     Input::Run
                 }
@@ -89,22 +122,19 @@ impl Iterator for InputIterator<'_> {
             _ => Input::Run,
         })
     }
-}
 
-impl InputPump {
-    pub fn new(sdl: &Sdl) -> IResult<Self> {
-        Ok(Self {
-            event_pump: sdl.event_pump()?,
-            ii: InIter {
-                mouse: Mouse::new(),
-            },
-        })
+    pub fn mouse(&self) -> &Mouse {
+        &self.mouse
     }
 
-    pub fn poll_iter(&mut self) -> impl Iterator<Item = Input> + '_ {
-        InputIterator {
-            poll_iter: self.event_pump.poll_iter(),
-            ii: &mut self.ii,
-        }
+    pub fn draw<G: Grid>(&mut self, grid: &mut G, point: GridPoint) -> BResult<()> {
+        let state = if let Some(state) = self.draw_state {
+            state
+        } else {
+            let state = !grid.get_cell_unchecked(point);
+            self.draw_state = Some(state);
+            state
+        };
+        grid.set_cell(point, state)
     }
 }
