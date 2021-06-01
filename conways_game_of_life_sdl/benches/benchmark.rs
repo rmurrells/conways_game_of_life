@@ -1,6 +1,6 @@
 use conways_game_of_life_sdl::{
     config,
-    renderer::{CyclicalModulatorOpt, DrawOption, Rygcbm},
+    render::{CyclicalModulatorOpt, DrawOption, Rygcbm},
     Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridPoint, GridUnit, SDLInterfaceBuilder,
 };
 use criterion::{
