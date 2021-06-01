@@ -1,11 +1,11 @@
 mod input_pump;
-pub mod renderer;
+pub mod render;
 
 pub use conways_game_of_life_impl::{
     config, BResult, Grid, Grid1dVec, Grid2dArr, Grid2dVec, GridPoint, GridUnit,
 };
 use input_pump::{Input, InputPump};
-use renderer::{Renderer, RendererBuilder};
+use render::{Renderer, RendererBuilder};
 use sdl2::{video::WindowBuildError, IntegerOrSdlError, Sdl};
 use std::{error::Error, fmt, marker::PhantomData};
 
@@ -139,7 +139,7 @@ where
                 Input::ZoomCamera { zoom } => self.renderer.camera.zoom(zoom.signum()),
             }
         }
-        self.renderer.render(&self.grid, self.input_pump.mouse())?;
+        self.renderer.render(&self.grid, &self.input_pump)?;
         if !self.pause || one_frame {
             self.grid.update();
             self.renderer.update();

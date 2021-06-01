@@ -1,6 +1,6 @@
 mod new_cell_color;
 
-use crate::{input_pump::Mouse, Grid, GridPoint, GridUnit, IResult};
+use crate::{input_pump::InputPump, Grid, GridPoint, GridUnit, IResult};
 use new_cell_color::{CyclicalModulator, NewCellColorCyclical, NewCellColorHeatMap};
 pub use new_cell_color::{CyclicalModulatorOpt, Rgb, Rygcbm};
 use sdl2::{
@@ -254,7 +254,7 @@ impl Renderer {
         ))
     }
 
-    pub fn render<G: Grid>(&mut self, grid: &G, mouse: &Mouse) -> IResult<()> {
+    pub fn render<G: Grid>(&mut self, grid: &G, input_pump: &InputPump) -> IResult<()> {
         self.canvas.set_draw_color(self.background_color);
         self.canvas.clear();
         if let DrawOptionPrivate::Static(cell_color) = self.draw_opt {
@@ -290,14 +290,18 @@ impl Renderer {
             Ok(())
         })?;
 
-        if let Some((x, y)) = self.map_window_pos_to_cell(mouse.position(), grid.size()) {
-            self.canvas.set_draw_color(Color::RGB(255, 255, 255));
-            self.canvas.draw_rect(Rect::new(
-                ((x as f64 - self.camera.x) * zoom_f64).ceil() as i32 + window_h_w,
-                ((y as f64 - self.camera.y) * zoom_f64).ceil() as i32 + window_h_h,
-                zoom_u32,
-                zoom_u32,
-            ))?;
+        if input_pump.mouse_in_window() {
+            if let Some((x, y)) =
+                self.map_window_pos_to_cell(input_pump.mouse().position(), grid.size())
+            {
+                self.canvas.set_draw_color(Color::RGB(255, 255, 255));
+                self.canvas.draw_rect(Rect::new(
+                    ((x as f64 - self.camera.x) * zoom_f64).ceil() as i32 + window_h_w,
+                    ((y as f64 - self.camera.y) * zoom_f64).ceil() as i32 + window_h_h,
+                    zoom_u32,
+                    zoom_u32,
+                ))?;
+            }
         }
 
         self.canvas.present();

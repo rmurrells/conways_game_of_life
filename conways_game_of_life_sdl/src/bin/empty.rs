@@ -1,20 +1,19 @@
 use conways_game_of_life_sdl::{
-    config,
     render::{CyclicalModulatorOpt, DrawOption, Rygcbm},
-    Grid2dVec, SDLInterfaceBuilder,
+    Grid2dArr, SDLInterfaceBuilder,
 };
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let size = (600, 600);
-    let mut grid = Grid2dVec::empty(size);
-    config::random(&mut grid, 0.25)?;
+    const WIDTH: usize = 600;
+    const HEIGHT: usize = 600;
+    let grid = Grid2dArr::<WIDTH, HEIGHT>::empty();
 
     let mut interface_builder = SDLInterfaceBuilder::new()?;
     interface_builder
         .renderer_builder
         .video_subsystem_command(move |mut vss| {
-            vss.window_size = (size.0 as u32, size.1 as u32);
+            vss.window_size = (WIDTH as u32, HEIGHT as u32);
             vss
         })
         .canvas_builder_command(|cb| cb.present_vsync());

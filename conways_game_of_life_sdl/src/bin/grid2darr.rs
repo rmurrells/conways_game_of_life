@@ -1,6 +1,6 @@
 use conways_game_of_life_sdl::{
     config,
-    renderer::{CyclicalModulatorOpt, DrawOption, Rygcbm},
+    render::{CyclicalModulatorOpt, DrawOption, Rygcbm},
     Grid2dArr, SDLInterfaceBuilder,
 };
 use std::error::Error;

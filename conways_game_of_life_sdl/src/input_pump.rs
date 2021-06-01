@@ -2,7 +2,7 @@ use crate::{BResult, Grid, GridPoint, IResult};
 use sdl2::{
     event::Event,
     keyboard::Keycode,
-    mouse::{MouseButton, MouseState},
+    mouse::{MouseButton, MouseState, MouseUtil},
     EventPump, Sdl,
 };
 
@@ -33,7 +33,8 @@ impl From<MouseState> for Mouse {
 pub struct InputPump {
     event_pump: EventPump,
     mouse: Mouse,
-    draw_state: Option<bool>,
+    mouse_util: MouseUtil,
+    draw_state: Option<(GridPoint, bool)>,
 }
 
 pub enum Input {
@@ -52,6 +53,7 @@ impl InputPump {
         let event_pump = sdl.event_pump()?;
         Ok(Self {
             mouse: event_pump.mouse_state().into(),
+            mouse_util: sdl.mouse(),
             event_pump,
             draw_state: None,
         })
@@ -82,22 +84,24 @@ impl InputPump {
             Event::MouseButtonDown { mouse_btn, .. } => match mouse_btn {
                 MouseButton::Left => {
                     self.mouse.left = true;
-                    Input::Run
-                }
-                MouseButton::Right => {
-                    self.mouse.right = true;
                     Input::DrawCell {
                         point: (self.mouse.x, self.mouse.y),
                     }
+                }
+                MouseButton::Right => {
+                    self.mouse.right = true;
+                    Input::Run
                 }
                 _ => Input::Run,
             },
             Event::MouseButtonUp { mouse_btn, .. } => {
                 match mouse_btn {
-                    MouseButton::Left => self.mouse.left = false,
+                    MouseButton::Left => {
+                        self.mouse.left = false;
+                        self.draw_state = None;
+                    }
                     MouseButton::Right => {
                         self.mouse.right = false;
-                        self.draw_state = None;
                     }
                     _ => (),
                 }
@@ -108,9 +112,9 @@ impl InputPump {
             } => {
                 self.mouse.x = x;
                 self.mouse.y = y;
-                if self.mouse.left {
+                if self.mouse.right {
                     Input::MoveCamera { x: -xrel, y: -yrel }
-                } else if self.mouse.right {
+                } else if self.mouse.left {
                     Input::DrawCell {
                         point: (self.mouse.x, self.mouse.y),
                     }
@@ -127,14 +131,27 @@ impl InputPump {
         &self.mouse
     }
 
+    pub fn mouse_in_window(&self) -> bool {
+        self.mouse_util.focused_window_id().is_some()
+    }
+
     pub fn draw<G: Grid>(&mut self, grid: &mut G, point: GridPoint) -> BResult<()> {
-        let state = if let Some(state) = self.draw_state {
-            state
+        let ret = if let Some((ref mut prev_point, prev_state)) = self.draw_state {
+            if *prev_point != point {
+                let ret = grid.set_line(*prev_point, point, prev_state);
+                *prev_point = point;
+                ret
+            } else {
+                Ok(())
+            }
         } else {
             let state = !grid.get_cell_unchecked(point);
-            self.draw_state = Some(state);
-            state
+            self.draw_state = Some((point, state));
+            grid.set_cell(point, state)
         };
-        grid.set_cell(point, state)
+        if !self.mouse_in_window() {
+            self.draw_state = None;
+        }
+        ret
     }
 }

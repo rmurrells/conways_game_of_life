@@ -188,6 +188,40 @@ pub trait Grid: GridPrivate {
         }
         Ok(())
     }
+
+    fn set_line(&mut self, mut start: GridPoint, mut end: GridPoint, b: bool) -> BResult<()> {
+        let axis = if (end.1 as i32 - start.1 as i32).abs() > (end.0 as i32 - start.0 as i32).abs()
+        {
+            mem::swap(&mut start.0, &mut start.1);
+            mem::swap(&mut end.0, &mut end.1);
+            if end.0 < start.0 {
+                mem::swap(&mut start, &mut end);
+            }
+            false
+        } else {
+            if end.0 < start.0 {
+                mem::swap(&mut start, &mut end);
+            }
+            true
+        };
+
+        let mut set_cell = |v, o_v, x_axis| -> BResult<()> {
+            self.set_cell(if x_axis { (v, o_v) } else { (o_v, v) }, b)
+        };
+
+        if end.0 - start.0 == 0 {
+            set_cell(start.0, start.1, axis)?;
+        } else {
+            let start_x = start.0 as f64;
+            let start_y = start.1 as f64;
+            let m = (end.1 as f64 - start_y) / (end.0 as f64 - start_x);
+            let c = start_y - m * start_x;
+            for v in start.0..=end.0 {
+                set_cell(v, (m * v as f64 + c).round() as GridUnit, axis)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 fn next_cell_state_scan_wrap_around<G: Grid>(grid: &G, (x, y): GridPoint) -> bool {
