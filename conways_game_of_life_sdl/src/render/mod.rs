@@ -104,6 +104,7 @@ impl StageCommands {
 
 pub struct RendererBuilder {
     pub video: VideoSubsystem,
+    pub grid_background_color: Color,
     pub background_color: Color,
     pub cursor_color: Color,
     pub draw_opt: DrawOption,
@@ -150,6 +151,7 @@ macro_rules! process_stages {
 			    }
 			    CameraOpt::Position {x, y} => Camera::new(x, y, zoom, zoom_range),
 			},
+			grid_background_color: $self.grid_background_color,
 			background_color: $self.background_color,
 			cursor_color: $self.cursor_color,
 			draw_opt: match $self.draw_opt {
@@ -174,7 +176,8 @@ impl RendererBuilder {
     pub fn new(sdl: &Sdl) -> IResult<Self> {
         Ok(Self {
             draw_opt: DrawOption::Static(Color::RGB(200, 200, 200)),
-            background_color: Color::RGB(0, 0, 0),
+            grid_background_color: Color::RGB(0, 0, 0),
+            background_color: Color::RGB(25, 25, 25),
             cursor_color: Color::RGB(255, 255, 255),
             video: sdl.video()?,
             camera_opt: CameraOpt::Centered,
@@ -217,6 +220,7 @@ impl RendererBuilder {
 
 pub struct Renderer {
     pub camera: Camera,
+    pub grid_background_color: Color,
     pub background_color: Color,
     pub cursor_color: Color,
     _video: VideoSubsystem,
@@ -261,11 +265,10 @@ impl Renderer {
     pub fn render<G: Grid>(&mut self, grid: &G, input_pump: &InputPump) -> IResult<()> {
         self.canvas.set_draw_color(self.background_color);
         self.canvas.clear();
-        if let DrawOptionPrivate::Static(cell_color) = self.draw_opt {
-            self.canvas.set_draw_color(cell_color);
-        }
 
-        let fill_rect = {
+        let get_rect = {
+            let camera = (self.camera.x, self.camera.y);
+
             let window_size = self.canvas.window().size();
             let window_h_w = window_size.0 as i32 / 2;
             let window_h_h = window_size.1 as i32 / 2;
@@ -273,44 +276,47 @@ impl Renderer {
             let zoom_f64 = self.camera.zoom as f64;
             let zoom_u32 = self.camera.zoom as u32;
 
-            move |canvas: &mut WindowCanvas,
-                  x: GridUnit,
-                  y: GridUnit,
-                  camera_x: f64,
-                  camera_y: f64|
-                  -> Result<(), String> {
-                canvas.fill_rect(Rect::new(
-                    ((x as f64 - camera_x) * zoom_f64).ceil() as i32 + window_h_w,
-                    ((y as f64 - camera_y) * zoom_f64).ceil() as i32 + window_h_h,
-                    zoom_u32,
-                    zoom_u32,
-                ))
+            move |point: GridPoint, size: GridPoint| -> Rect {
+                Rect::new(
+                    ((point.0 as f64 - camera.0) * zoom_f64).ceil() as i32 + window_h_w,
+                    ((point.1 as f64 - camera.1) * zoom_f64).ceil() as i32 + window_h_h,
+                    size.0 as u32 * zoom_u32,
+                    size.1 as u32 * zoom_u32,
+                )
             }
         };
 
-        grid.try_inspect::<String, _>(|(x, y), grid| {
-            let cell = grid.get_cell_unchecked((x, y));
+        let grid_size = grid.size();
+        self.canvas.set_draw_color(self.grid_background_color);
+        self.canvas.fill_rect(get_rect((0, 0), grid_size))?;
+
+        if let DrawOptionPrivate::Static(cell_color) = self.draw_opt {
+            self.canvas.set_draw_color(cell_color);
+        }
+
+        grid.try_inspect::<String, _>(|point, grid| {
+            let cell = grid.get_cell_unchecked(point);
             match &mut self.draw_opt {
                 DrawOptionPrivate::DynamicCyclical(ncc) => {
-                    self.canvas.set_draw_color(ncc.get_cell_color((x, y), cell));
+                    self.canvas.set_draw_color(ncc.get_cell_color(point, cell));
                 }
                 DrawOptionPrivate::DynamicHeatMap(ncc) => {
-                    self.canvas.set_draw_color(ncc.get_cell_color((x, y), cell));
+                    self.canvas.set_draw_color(ncc.get_cell_color(point, cell));
                 }
                 _ => (),
             }
             if cell {
-                fill_rect(&mut self.canvas, x, y, self.camera.x, self.camera.y)?;
+                self.canvas.fill_rect(get_rect(point, (1, 1)))?;
             }
             Ok(())
         })?;
 
         if input_pump.mouse_in_window() {
-            if let Some((x, y)) =
-                self.map_window_pos_to_cell(input_pump.mouse().position(), grid.size())
+            if let Some(point) =
+                self.map_window_pos_to_cell(input_pump.mouse().position(), grid_size)
             {
                 self.canvas.set_draw_color(self.cursor_color);
-                fill_rect(&mut self.canvas, x, y, self.camera.x, self.camera.y)?;
+                self.canvas.draw_rect(get_rect(point, (1, 1)))?;
             }
         }
 
