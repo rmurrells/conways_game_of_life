@@ -170,8 +170,8 @@ impl CyclicalModulator {
 }
 
 pub struct NewCellColorCyclical {
-    cyclical_modulator: CyclicalModulator,
     cell_states: CellStates,
+    cyclical_modulator: CyclicalModulator,
 }
 
 impl NewCellColorCyclical {
