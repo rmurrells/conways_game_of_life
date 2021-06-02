@@ -119,6 +119,8 @@ where
                                 oob.size()
                             );
                         }
+                    } else {
+                        self.input_pump.draw_state = None;
                     }
                 }
                 Input::MoveCamera { x, y } => {

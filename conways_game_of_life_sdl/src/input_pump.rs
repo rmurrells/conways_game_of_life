@@ -31,10 +31,10 @@ impl From<MouseState> for Mouse {
 }
 
 pub struct InputPump {
+    pub draw_state: Option<(GridPoint, bool)>,
     event_pump: EventPump,
     mouse: Mouse,
     mouse_util: MouseUtil,
-    draw_state: Option<(GridPoint, bool)>,
 }
 
 pub enum Input {
@@ -52,10 +52,10 @@ impl InputPump {
     pub fn new(sdl: &Sdl) -> IResult<Self> {
         let event_pump = sdl.event_pump()?;
         Ok(Self {
+            draw_state: None,
             mouse: event_pump.mouse_state().into(),
             mouse_util: sdl.mouse(),
             event_pump,
-            draw_state: None,
         })
     }
 
