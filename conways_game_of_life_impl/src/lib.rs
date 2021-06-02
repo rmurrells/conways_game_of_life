@@ -500,7 +500,6 @@ impl fmt::Debug for Grid2dVec {
 
 type Grid2dArrContainer<const WIDTH: usize, const HEIGHT: usize> = [[bool; WIDTH]; HEIGHT];
 
-#[derive(Clone)]
 pub struct Grid2dArr<const WIDTH: usize, const HEIGHT: usize> {
     current_arr: Grid2dArrContainer<WIDTH, HEIGHT>,
     next_arr: Grid2dArrContainer<WIDTH, HEIGHT>,
@@ -608,5 +607,23 @@ impl<G: Grid> Grid for Box<G> {
 
     fn get_cell_unchecked_mut(&mut self, point: GridPoint) -> &mut bool {
         G::get_cell_unchecked_mut(self, point)
+    }
+}
+
+/*Derived clone causing intermittent stack overflows on windows. Manually derive clone for Box instead.*/
+impl<const WIDTH: usize, const HEIGHT: usize> Clone for Box<Grid2dArr<WIDTH, HEIGHT>> {
+    fn clone(&self) -> Self {
+        let mut ret = unsafe {
+            Box::from_raw(alloc::alloc(Layout::new::<Grid2dArr<WIDTH, HEIGHT>>())
+                as *mut Grid2dArr<WIDTH, HEIGHT>)
+        };
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                ret.current_arr[y][x] = self.current_arr[y][x];
+                ret.next_arr[y][x] = self.next_arr[y][x];
+            }
+        }
+        ret.frame_regulator_opt = self.frame_regulator_opt;
+        ret
     }
 }

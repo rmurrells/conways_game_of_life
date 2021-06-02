@@ -138,6 +138,6 @@ pub fn test<G: Grid>(grid: &mut G) -> BResult<()> {
     pulsar(grid, (45, 1))?;
     penta_decathlon(grid, (64, 3))?;
     lwss(grid, (26, 10))?;
-    mwss(grid, (35, 7))?;
-    hwss(grid, (35, 14))
+    mwss(grid, (35, 6))?;
+    hwss(grid, (35, 13))
 }
