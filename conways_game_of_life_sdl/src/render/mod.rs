@@ -268,6 +268,20 @@ impl Renderer {
         let zoom_f64 = self.camera.zoom as f64;
         let zoom_u32 = self.camera.zoom as u32;
 
+        let fill_rect = move |canvas: &mut WindowCanvas,
+                              x: GridUnit,
+                              y: GridUnit,
+                              camera_x: f64,
+                              camera_y: f64|
+              -> Result<(), String> {
+            canvas.fill_rect(Rect::new(
+                ((x as f64 - camera_x) * zoom_f64).ceil() as i32 + window_h_w,
+                ((y as f64 - camera_y) * zoom_f64).ceil() as i32 + window_h_h,
+                zoom_u32,
+                zoom_u32,
+            ))
+        };
+
         grid.try_inspect::<String, _>(|(x, y), grid| {
             let cell = grid.get_cell_unchecked((x, y));
             match &mut self.draw_opt {
@@ -280,12 +294,7 @@ impl Renderer {
                 _ => (),
             }
             if cell {
-                self.canvas.fill_rect(Rect::new(
-                    ((x as f64 - self.camera.x) * zoom_f64).ceil() as i32 + window_h_w,
-                    ((y as f64 - self.camera.y) * zoom_f64).ceil() as i32 + window_h_h,
-                    zoom_u32,
-                    zoom_u32,
-                ))?;
+                fill_rect(&mut self.canvas, x, y, self.camera.x, self.camera.y)?;
             }
             Ok(())
         })?;
@@ -295,12 +304,7 @@ impl Renderer {
                 self.map_window_pos_to_cell(input_pump.mouse().position(), grid.size())
             {
                 self.canvas.set_draw_color(Color::RGB(255, 255, 255));
-                self.canvas.draw_rect(Rect::new(
-                    ((x as f64 - self.camera.x) * zoom_f64).ceil() as i32 + window_h_w,
-                    ((y as f64 - self.camera.y) * zoom_f64).ceil() as i32 + window_h_h,
-                    zoom_u32,
-                    zoom_u32,
-                ))?;
+                fill_rect(&mut self.canvas, x, y, self.camera.x, self.camera.y)?;
             }
         }
 
