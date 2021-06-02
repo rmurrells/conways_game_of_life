@@ -105,6 +105,7 @@ impl StageCommands {
 pub struct RendererBuilder {
     pub video: VideoSubsystem,
     pub background_color: Color,
+    pub cursor_color: Color,
     pub draw_opt: DrawOption,
     pub camera_opt: CameraOpt,
     build_stage: RendererBuildStage,
@@ -149,6 +150,8 @@ macro_rules! process_stages {
 			    }
 			    CameraOpt::Position {x, y} => Camera::new(x, y, zoom, zoom_range),
 			},
+			background_color: $self.background_color,
+			cursor_color: $self.cursor_color,
 			draw_opt: match $self.draw_opt {
 			    DrawOption::Static(color) => DrawOptionPrivate::Static(color),
 			    DrawOption::DynamicCyclical(rgb) => DrawOptionPrivate::DynamicCyclical(
@@ -158,7 +161,6 @@ macro_rules! process_stages {
 				DrawOptionPrivate::DynamicHeatMap(NewCellColorHeatMap::new(hot, cold, $grid_size))
 			    }
 			},
-			background_color: $self.background_color,
                         _video: $self.video,
                         canvas,
                     });
@@ -173,6 +175,7 @@ impl RendererBuilder {
         Ok(Self {
             draw_opt: DrawOption::Static(Color::RGB(200, 200, 200)),
             background_color: Color::RGB(0, 0, 0),
+            cursor_color: Color::RGB(255, 255, 255),
             video: sdl.video()?,
             camera_opt: CameraOpt::Centered,
             build_stage: RendererBuildStage::VideoSubsystem(VideoSubsystemStage {
@@ -215,6 +218,7 @@ impl RendererBuilder {
 pub struct Renderer {
     pub camera: Camera,
     pub background_color: Color,
+    pub cursor_color: Color,
     _video: VideoSubsystem,
     canvas: WindowCanvas,
     draw_opt: DrawOptionPrivate,
@@ -261,25 +265,27 @@ impl Renderer {
             self.canvas.set_draw_color(cell_color);
         }
 
-        let window_size = self.canvas.window().size();
-        let window_h_w = window_size.0 as i32 / 2;
-        let window_h_h = window_size.1 as i32 / 2;
+        let fill_rect = {
+            let window_size = self.canvas.window().size();
+            let window_h_w = window_size.0 as i32 / 2;
+            let window_h_h = window_size.1 as i32 / 2;
 
-        let zoom_f64 = self.camera.zoom as f64;
-        let zoom_u32 = self.camera.zoom as u32;
+            let zoom_f64 = self.camera.zoom as f64;
+            let zoom_u32 = self.camera.zoom as u32;
 
-        let fill_rect = move |canvas: &mut WindowCanvas,
-                              x: GridUnit,
-                              y: GridUnit,
-                              camera_x: f64,
-                              camera_y: f64|
-              -> Result<(), String> {
-            canvas.fill_rect(Rect::new(
-                ((x as f64 - camera_x) * zoom_f64).ceil() as i32 + window_h_w,
-                ((y as f64 - camera_y) * zoom_f64).ceil() as i32 + window_h_h,
-                zoom_u32,
-                zoom_u32,
-            ))
+            move |canvas: &mut WindowCanvas,
+                  x: GridUnit,
+                  y: GridUnit,
+                  camera_x: f64,
+                  camera_y: f64|
+                  -> Result<(), String> {
+                canvas.fill_rect(Rect::new(
+                    ((x as f64 - camera_x) * zoom_f64).ceil() as i32 + window_h_w,
+                    ((y as f64 - camera_y) * zoom_f64).ceil() as i32 + window_h_h,
+                    zoom_u32,
+                    zoom_u32,
+                ))
+            }
         };
 
         grid.try_inspect::<String, _>(|(x, y), grid| {
@@ -303,7 +309,7 @@ impl Renderer {
             if let Some((x, y)) =
                 self.map_window_pos_to_cell(input_pump.mouse().position(), grid.size())
             {
-                self.canvas.set_draw_color(Color::RGB(255, 255, 255));
+                self.canvas.set_draw_color(self.cursor_color);
                 fill_rect(&mut self.canvas, x, y, self.camera.x, self.camera.y)?;
             }
         }
