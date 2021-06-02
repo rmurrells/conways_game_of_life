@@ -42,6 +42,57 @@ impl From<Rygcbm> for Color {
 }
 
 #[derive(Clone, Copy)]
+struct CellState {
+    state: bool,
+    color: Color,
+}
+
+struct CellStates {
+    pub cells: Vec<Vec<CellState>>,
+}
+
+impl CellStates {
+    fn new(color: Color, grid_size: GridPoint) -> Self {
+        Self {
+            cells: vec![
+                vec![
+                    CellState {
+                        state: false,
+                        color
+                    };
+                    grid_size.0 as usize
+                ];
+                grid_size.1 as usize
+            ],
+        }
+    }
+
+    fn get_cell_color(&mut self, point: GridPoint, cell: bool, color: Color) -> Color {
+        let cell_state = &mut self.cells[point.1 as usize][point.0 as usize];
+        if cell {
+            if !cell_state.state {
+                cell_state.color = color;
+                cell_state.state = true;
+            }
+        } else {
+            cell_state.state = false;
+        }
+        cell_state.color
+    }
+    
+    fn reset(&mut self, color: Color) {
+        for row in &mut self.cells {
+            for cell_state in row {
+                *cell_state = CellState {
+                    state: false,
+                    color,
+                };
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub enum CyclicalModulatorOpt {
     Rgb(Rgb),
     Rygcbm(Rygcbm),
@@ -118,50 +169,8 @@ impl CyclicalModulator {
     }
 }
 
-#[derive(Clone, Copy)]
-struct CellState {
-    state: bool,
-    color: Color,
-}
-
-struct CellStates {
-    pub cells: Vec<Vec<CellState>>,
-}
-
-impl CellStates {
-    fn new(color: Color, grid_size: GridPoint) -> Self {
-        Self {
-            cells: vec![
-                vec![
-                    CellState {
-                        state: false,
-                        color
-                    };
-                    grid_size.0 as usize
-                ];
-                grid_size.1 as usize
-            ],
-        }
-    }
-
-    fn get_cell(&mut self, (x, y): GridPoint) -> &mut CellState {
-        &mut self.cells[y as usize][x as usize]
-    }
-
-    fn reset(&mut self, color: Color) {
-        for row in &mut self.cells {
-            for cell_state in row {
-                *cell_state = CellState {
-                    state: false,
-                    color,
-                };
-            }
-        }
-    }
-}
-
 pub struct NewCellColorCyclical {
-    pub cyclical_modulator: CyclicalModulator,
+    cyclical_modulator: CyclicalModulator,
     cell_states: CellStates,
 }
 
@@ -174,16 +183,7 @@ impl NewCellColorCyclical {
     }
 
     pub fn get_cell_color(&mut self, point: GridPoint, cell: bool) -> Color {
-        let cell_state = self.cell_states.get_cell(point);
-        if cell {
-            if !cell_state.state {
-                cell_state.color = self.cyclical_modulator.color();
-                cell_state.state = true;
-            }
-        } else {
-            cell_state.state = false;
-        }
-        cell_state.color
+	self.cell_states.get_cell_color(point, cell, self.cyclical_modulator.color())
     }
 
     pub fn update(&mut self) {
@@ -212,16 +212,7 @@ impl NewCellColorHeatMap {
     }
 
     pub fn get_cell_color(&mut self, point: GridPoint, cell: bool) -> Color {
-        let cell_state = self.cell_states.get_cell(point);
-        if cell {
-            if !cell_state.state {
-                cell_state.color = self.hot.into();
-                cell_state.state = true;
-            }
-        } else {
-            cell_state.state = false;
-        }
-        cell_state.color
+	self.cell_states.get_cell_color(point, cell, self.hot.into())
     }
 
     pub fn update(&mut self) {
