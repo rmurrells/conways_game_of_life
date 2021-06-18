@@ -1,6 +1,6 @@
-# Conways Game of Life
+# Conway's Game of Life
 
-Conways game of life written in Rust using SDL.
+Conway's game of life written in Rust using SDL.
 
 # Requirements
 
