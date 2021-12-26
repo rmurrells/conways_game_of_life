@@ -43,7 +43,7 @@ pub enum SetLineOpt {
     Vertical,
 }
 
-pub(crate) mod private {
+mod private {
     use super::*;
     pub trait GridPrivate {
         fn _size(&self) -> GridPoint;
